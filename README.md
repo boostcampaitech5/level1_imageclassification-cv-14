@@ -8,9 +8,9 @@
 
 ```bash
 
-  ├─base_line
-  ├─personal_code
-  ├─EDA.ipynb
+  ├─base_line : 베이스라인 코드
+  ├─personal_code : 개인적으로 작성한 코드
+  ├─EDA.ipynb : EDA 내용
   ├─README.md
 
 ``` 
