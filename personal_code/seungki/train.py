@@ -21,7 +21,7 @@ from configparser import ConfigParser
 from dataset import MaskBaseDataset
 from loss import create_criterion
 
-# import wandb
+import wandb
 
 from sklearn.metrics import f1_score, precision_score, recall_score
 
@@ -168,6 +168,9 @@ def train(data_dir, model_dir, args):
     best_val_loss = np.inf
     
     # -- train loop
+    
+    earlystop_cnt = 0
+    
     for epoch in range(args.epochs):
         # torch.cuda.empty_cache()
         model.train()
@@ -195,12 +198,19 @@ def train(data_dir, model_dir, args):
                 train_acc = matches / args.batch_size / args.log_interval
                 current_lr = get_lr(optimizer)
                 print(
-                    f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
-                    f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
+                    f"EPOCH[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
+                    f"TRAINING LOSS: {train_loss:4.4} || TRAINING ACC: {train_acc:4.2%} || LR: {current_lr}"
                 )
                 # logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 # logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
-
+                
+                # -- wandb 학습 단계에서 Loss, Accuracy 로그 저장
+                wandb.log({
+                "Train loss": train_loss,
+                "Train acc" : train_acc
+            })
+                
+                
                 loss_value = 0
                 matches = 0
 
@@ -240,7 +250,6 @@ def train(data_dir, model_dir, args):
                 y_pred += preds.cpu().tolist()
             
                 
-                
                 # if figure is None:
                 #     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
                 #     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
@@ -254,20 +263,42 @@ def train(data_dir, model_dir, args):
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_loss = min(best_val_loss, val_loss)
+            
+            
+            # -- Early Stopping, 
+            if (val_loss > best_val_loss) or (val_acc < best_val_acc):
+                earlystop_cnt+=1
+
+                if earlystop_cnt = 0 == 5:
+                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 5 EPOCHS")
+                    break
+            else:
+                earlystop_cnt = 0
+            
+            
             if val_acc > best_val_acc:
                 print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_acc = val_acc
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
             print(
-                f"[Val] acc : {val_acc:4.2%}, loss : {val_loss:4.2} || "
-                f"best acc : {best_val_acc:4.2%}, best loss : {best_val_loss:4.2} || "
-                f"f1 score : {f1:4.2%}"
+                f"[VAL] ACC : {val_acc:4.2%}, LOSS : {val_loss:4.2} || "
+                f"BEST ACC : {best_val_acc:4.2%}, BEST LOSS : {best_val_loss:4.2} || "
+                f"F1 SCORE : {f1:4.2%}"
                 # f"precision : {precision:4.2%}, recall : {recall:4.2%}"
             )
             # logger.add_scalar("Val/loss", val_loss, epoch)
             # logger.add_scalar("Val/accuracy", val_acc, epoch)
             # logger.add_figure("results", figure, epoch)
+            
+            # -- wandb 검증 단계에서 Loss, Accuracy 로그 저장
+            wandb.log({
+                "VALID LOSS": val_loss,
+                "VALID ACC" : val_acc,
+                "F1 SCORE" : f1,
+                "BEST VALID ACC" : best_val_acc
+            })
+            
             print()
             
     
@@ -281,22 +312,22 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 10)')
+    parser.add_argument('--epochs', type=int, default=25, help='number of epochs to train (default: 25)')
     
     # parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
     
     # parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=list, default=[224, 224], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
-    parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--valid_batch_size', type=int, default=256, help='input batch size for validing (default: 256)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
-    parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
+    parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: SGD)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
+    parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 5)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default=None, help='model save at {SM_MODEL_DIR}/{name}')
 
@@ -321,6 +352,25 @@ if __name__ == '__main__':
                 args.__dict__[key] = config[key]
     else:
         config = {}
+    
+    
+    # -- wandb configuration
+    
+    wandb.init(project=args.model)
+    
+    wandb_config={
+    "model": args.model,
+    "learning_rate": args.lr,
+    "epochs": args.epochs,
+    "batch_size": args.batch_size,
+    "optimizer": args.optimizer,
+    "seed": args.seed,
+    "criterion": args.criterion,
+    "resize": args.resize,
+    "augmentation" : args.augmentation
+    }
+    
+    wandb.config.update(wandb_config)
         
     
     print(args)

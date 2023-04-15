@@ -6,6 +6,7 @@ from importlib import import_module
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
+import json
 
 from dataset import TestDataset, MaskBaseDataset
 from datetime import datetime
@@ -74,25 +75,47 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
     now = datetime.now()
-    file_name = now.strftime('%Y-%m-%d-%H:%M:%S')
+    folder_name = now.strftime('%Y-%m-%d-%H:%M:%S')
+    
+    # Configuration json file
+    parser.add_argument('--config', type=str, default=None, help='config file path (default: None)')
 
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--resize', type=tuple, default=(224, 224), help='resize size for image when you trained (default: (96, 128))')
+    parser.add_argument('--resize', type=tuple, default=(224, 224), help='resize size for image when you trained (default: (224, 224))')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
 
     # Container environment
-    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/exp'))
+    parser.add_argument('--eval_data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))
+    parser.add_argument('--bestpth_model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/'))
     # parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output'))
-    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', f'./output/{file_name}'))
+    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', f'./output/{folder_name}'))
 
     args = parser.parse_args()
-
-    data_dir = args.data_dir
-    model_dir = args.model_dir
-    output_dir = args.output_dir
-
+    
+    # -- Read configuration values    
+    if args.config is not None:
+        with open(args.config, 'r') as f:
+            config = json.load(f)
+        
+        # -- Override default configuration with configuration from config file
+        for key in config:
+            if key in args.__dict__ and config[key] is not None:
+                args.__dict__[key] = config[key]
+        
+        # -- Set best.pth path
+        bestpth_model_dir = config['model_dir'] + '/' + config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr'])
+        
+        # -- Set output directory
+        output_dir = f"./output/{folder_name}"+ config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr'])
+        
+    else:
+        config = {}
+        bestpth_model_dir = args.bestpth_model_dir
+        output_dir = args.output_dir
+    
+    eval_data_dir = args.eval_data_dir
+    
     os.makedirs(output_dir, exist_ok=True)
 
-    inference(data_dir, model_dir, output_dir, args)
+    inference(eval_data_dir, bestpth_model_dir, output_dir, args)

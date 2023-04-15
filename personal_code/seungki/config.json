@@ -16,5 +16,6 @@
     "log_interval": 20,
     "name": "",
     "data_dir": "/opt/ml/input/data/train/images",
+    "eval_data_dir": "/opt/ml/input/data/eval",
     "model_dir": "./model"
 }
