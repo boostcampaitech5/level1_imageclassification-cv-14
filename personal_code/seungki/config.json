@@ -1,0 +1,20 @@
+{
+    "dataset": "MaskSplitByProfileDataset",
+    "model": "EfficientnetB2",
+    "augmentation": "CustomAugmentation",
+    "optimizer": "Adam",
+    "epochs": 10,
+    "resize": [
+        224,
+        224
+    ],
+    "batch_size": 64,
+    "valid_batch_size": 256,
+    "lr": 0.00001,
+    "val_ratio": 0.2,
+    "lr_decay_step": 5,
+    "log_interval": 20,
+    "name": "",
+    "data_dir": "/opt/ml/input/data/train/images",
+    "model_dir": "./model"
+}
