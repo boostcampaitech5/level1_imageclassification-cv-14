@@ -13,7 +13,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -158,6 +158,7 @@ def train(data_dir, model_dir, args):
         weight_decay=5e-4
     )
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    # scheduler = CosineAnnealingLR(optimizer, args.lr_decay_step)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
@@ -269,8 +270,8 @@ def train(data_dir, model_dir, args):
             if (val_loss > best_val_loss) or (val_acc < best_val_acc):
                 earlystop_cnt+=1
 
-                if earlystop_cnt = 0 == 5:
-                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 5 EPOCHS")
+                if earlystop_cnt == 3:
+                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 3 EPOCHS")
                     break
             else:
                 earlystop_cnt = 0
@@ -307,17 +308,17 @@ def train(data_dir, model_dir, args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
-    # Configuration json file
+    #-- Configuration json file
     parser.add_argument('--config', type=str, default=None, help='config file path (default: None)')
 
-    # Data and model checkpoints directories
+    #-- Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
     parser.add_argument('--epochs', type=int, default=25, help='number of epochs to train (default: 25)')
     
-    # parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
+    #-- parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
     
-    # parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
+    #-- parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
     parser.add_argument("--resize", nargs="+", type=list, default=[224, 224], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
@@ -331,6 +332,9 @@ if __name__ == '__main__':
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default=None, help='model save at {SM_MODEL_DIR}/{name}')
 
+    #-- pass on arguments for wandb
+    parser.add_argument('--augmentation_types', default=None, help='augmentation logging for wandb')
+    
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
@@ -356,7 +360,10 @@ if __name__ == '__main__':
     
     # -- wandb configuration
     
-    wandb.init(project=args.model)
+    wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation'])
+    
+    project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
+    wandb.init(project=project_name,name=wandb_runname)
     
     wandb_config={
     "model": args.model,
@@ -367,7 +374,9 @@ if __name__ == '__main__':
     "seed": args.seed,
     "criterion": args.criterion,
     "resize": args.resize,
-    "augmentation" : args.augmentation
+    "augmentation" : args.augmentation,
+    "lr_decay_step" : args.lr_decay_step,
+    "augmentation_types" : args.augmentation_types
     }
     
     wandb.config.update(wandb_config)

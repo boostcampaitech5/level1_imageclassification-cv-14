@@ -103,7 +103,7 @@ class EfficientnetB4(nn.Module):
         return x
     
 
-# --EffecientNet V2 pretrained=True
+# --Vit_small_patch16_224 pretrained=True
 
 class Vitsmall_patch16_224(nn.Module):
     def __init__(self, num_classes):

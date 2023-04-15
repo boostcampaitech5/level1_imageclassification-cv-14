@@ -6,7 +6,7 @@ import torch.nn.functional as F
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
     def __init__(self, weight=None,
-                 gamma=2., reduction='mean'):
+                gamma=2., reduction='mean'):
         nn.Module.__init__(self)
         self.weight = weight
         self.gamma = gamma

@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomErasing, RandomHorizontalFlip
+from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomErasing, RandomHorizontalFlip, RandomNoise, RandomApply, Grayscale
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -52,11 +52,14 @@ class AddGaussianNoise(object):
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
-            RandomHorizontalFlip(p=0.3),
+            # CenterCrop((320, 256)),
+            CenterCrop((350, 256)),
+            RandomHorizontalFlip(p=0.2),
+            RandomNoise(p=0.3, mean=0.0, std=0.1, noise_type='gaussian'),
             # RandomErasing(p=1, scale=(0.05,0.05), ratio=(0.5,1)),
             Resize(resize, Image.BILINEAR),
-            # ColorJitter(0.1, 0.1, 0.1, 0.1),
+            RandomApply(Grayscale(num_output_channels=3), p=0.1),
+            ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, p=0.2),
             ToTensor(),
             Normalize(mean=mean, std=std),
             # AddGaussianNoise()
@@ -117,7 +120,7 @@ class MaskBaseDataset(Dataset):
         "mask2": MaskLabels.MASK,
         "mask3": MaskLabels.MASK,
         "mask4": MaskLabels.MASK,
-        # "mask5": MaskLabels.MASK,
+        "mask5": MaskLabels.MASK,
         "incorrect_mask": MaskLabels.INCORRECT,
         "normal": MaskLabels.NORMAL
     }
@@ -302,7 +305,7 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.transform = Compose([
             #-- tta
-            CenterCrop((320, 256)),
+            # CenterCrop((320, 256)),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
