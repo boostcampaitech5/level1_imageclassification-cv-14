@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomErasing, RandomHorizontalFlip, RandomNoise, RandomApply, Grayscale
+from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomErasing, RandomHorizontalFlip, RandomApply, Grayscale, RandomRotation
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -52,21 +52,42 @@ class AddGaussianNoise(object):
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            # CenterCrop((320, 256)),
-            CenterCrop((350, 256)),
-            RandomHorizontalFlip(p=0.2),
-            RandomNoise(p=0.3, mean=0.0, std=0.1, noise_type='gaussian'),
-            # RandomErasing(p=1, scale=(0.05,0.05), ratio=(0.5,1)),
+            CenterCrop((320, 256)),
+            # CenterCrop((350, 256)),
+            RandomHorizontalFlip(p=0.1),
             Resize(resize, Image.BILINEAR),
-            RandomApply(Grayscale(num_output_channels=3), p=0.1),
-            ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, p=0.2),
+            # RandomErasing(p=0.2, scale=(0.05,0.05), ratio=(0.5,1)),
+            # RandomApply(Grayscale(num_output_channels=3), p=0.1),
+            # RandomApply([ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=0.2),
             ToTensor(),
-            Normalize(mean=mean, std=std),
+            Normalize(mean=mean, std=std)
             # AddGaussianNoise()
+        ])
+        
+        self.transform_60 = Compose([
+            CenterCrop((320, 256)),
+            # CenterCrop((350, 256)),
+            RandomHorizontalFlip(p=0.5),
+            RandomRotation(10),
+            Resize(resize, Image.BILINEAR),
+            # RandomErasing(p=0.3, scale=(0.05,0.05), ratio=(0.5,1)), 
+            # RandomApply([AddGaussianNoise()], p=0.3),
+            # RandomApply([ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=0.2),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
         ])
 
     def __call__(self, image):
-        return self.transform(image)
+        img_path, filename = os.path.split(image.filename)
+        age = int(os.path.split(img_path)[-1].split("_")[-1])
+        
+        if age < 57:
+            return self.transform(image)
+        else:
+            return self.transform_60(image)
+
+    # def __call__(self, image):
+    #     return self.transform(image)
 
 
 class MaskLabels(int, Enum):
@@ -102,8 +123,8 @@ class AgeLabels(int, Enum):
         except Exception:
             raise ValueError(f"Age value should be numeric, {value}")
 
-        # if value < 30:
-        if value < 29:
+        
+        if value < 30:
             return cls.YOUNG
         # elif value < 60:
         elif value < 56:
@@ -153,11 +174,18 @@ class MaskBaseDataset(Dataset):
                     continue
 
                 img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                
                 mask_label = self._file_names[_file_name]
+                
+                # -- exclude mask 3, 4
+                if mask_label == "mask3" or mask_label == "mask4":
+                    continue
 
                 id, gender, race, age = profile.split("_")
+                
                 gender_label = GenderLabels.from_str(gender)
                 age_label = AgeLabels.from_number(age)
+                
 
                 self.image_paths.append(img_path)
                 self.mask_labels.append(mask_label)
@@ -304,8 +332,10 @@ class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
         self.transform = Compose([
-            #-- tta
-            # CenterCrop((320, 256)),
+            # -- tta
+            CenterCrop((320, 256)),
+            # CenterCrop((350, 256)),
+            # --
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),

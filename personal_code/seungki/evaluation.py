@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
+import json
 
 from sklearn.metrics import classification_report , confusion_matrix, ConfusionMatrixDisplay
 
@@ -117,7 +118,7 @@ def evaluation(data_dir, model_dir, args):
             #print(type(preds),type(labels))
             
             #print(len(preds),len(real_label))
-    	
+
         #print(type(preds),type(real_label))
         #print(preds)
         #print(real_label)
@@ -143,6 +144,9 @@ def evaluation(data_dir, model_dir, args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
+    # Configuration json file
+    parser.add_argument('--config', type=str, default=None, help='config file path (default: None)')
+    
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
     # parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
@@ -155,12 +159,30 @@ if __name__ == '__main__':
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/train/images'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/exp'))
+    parser.add_argument('--bestpth_model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/'))
     #parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output'))
 
     args = parser.parse_args()
-
+    
+    # -- Read configuration values    
+    if args.config is not None:
+        with open(args.config, 'r') as f:
+            config = json.load(f)
+        
+        # -- Override default configuration with configuration from config file
+        for key in config:
+            if key in args.__dict__ and config[key] is not None:
+                args.__dict__[key] = config[key]
+        
+        # -- Set best.pth path
+        bestpth_model_dir = config['model_dir'] + '/' + config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr'])
+        
+    else:
+        config = {}
+        bestpth_model_dir = args.bestpth_model_dir
+        
+    
     data_dir = args.data_dir
-    model_dir = args.model_dir
 
-    evaluation(data_dir, model_dir, args)
+
+    evaluation(data_dir, bestpth_model_dir, args)
