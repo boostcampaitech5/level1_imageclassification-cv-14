@@ -54,7 +54,7 @@ class CustomAugmentation:
         self.transform = Compose([
             CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
-            # RandomHorizontalFlip(p=0.4),
+            RandomHorizontalFlip(p=0.2),
             Resize(resize, Image.BILINEAR),
             # RandomErasing(p=0.2, scale=(0.05,0.05), ratio=(0.5,1)),
             # RandomApply(Grayscale(num_output_channels=3), p=0.1),
@@ -69,9 +69,9 @@ class CustomAugmentation:
             # CenterCrop((350, 256)),
             RandomHorizontalFlip(p=0.5),
             RandomRotation(15),
+            RandomApply([AddGaussianNoise()], p=0.3),
             Resize(resize, Image.BILINEAR),
             # RandomErasing(p=0.3, scale=(0.05,0.05), ratio=(0.5,1)), 
-            # RandomApply([AddGaussianNoise()], p=0.3),
             # RandomApply([ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=0.2),
             ToTensor(),
             Normalize(mean=mean, std=std)
@@ -81,7 +81,7 @@ class CustomAugmentation:
         img_path, filename = os.path.split(image.filename)
         age = int(os.path.split(img_path)[-1].split("_")[-1])
         
-        if age < 61:
+        if age < 57:
             return self.transform(image)
         else:
             return self.transform_60(image)
@@ -126,10 +126,10 @@ class AgeLabels(int, Enum):
         
         if value < 30:
             return cls.YOUNG
-        elif value < 60:
-            return cls.MIDDLE
-        # elif value < 56:
+        # elif value < 60:
         #     return cls.MIDDLE
+        elif value < 57:
+            return cls.MIDDLE
         else:
             return cls.OLD
 
@@ -178,9 +178,9 @@ class MaskBaseDataset(Dataset):
                 
                 mask_label = self._file_names[_file_name]
                 
-                # -- exclude mask 3, 4
-                # if mask_label == "mask3" or mask_label == "mask4":
-                #     continue
+                #-- exclude mask 3, 4
+                if mask_label == "mask2" or mask_label == "mask4":
+                    continue
 
                 id, gender, race, age = profile.split("_")
                 

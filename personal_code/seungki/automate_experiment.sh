@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # -- Define values for the loop
-models=("EfficientnetB0" "EfficientnetB1" "EfficientnetB2" "EfficientnetB3" "vit_small_patch16_224")
+models=("Vitsmall_patch16_224")
 learning_rates=(0.00002 0.00001 0.0001)
 batch_sizes=(64 128)
-epochs=20
+epochs=30
 augmentation="CustomAugmentation"
 dataset="MaskSplitByProfileDataset"
 valid_batch_size=256
 criterion="cross_entropy"
 optimizer="Adam"
 lr_decay_step=5
-resize_sizes=(224)
-augmentation_types=["CenterCrop((320, 256))"]
+resize_sizes=("224 224")
+augmentation_types=("CenterCrop((320, 256))")
 
 
 # -- Loop over combination of values
