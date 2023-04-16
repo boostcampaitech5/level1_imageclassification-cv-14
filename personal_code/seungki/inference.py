@@ -104,10 +104,10 @@ if __name__ == '__main__':
                 args.__dict__[key] = config[key]
         
         # -- Set best.pth path
-        bestpth_model_dir = config['model_dir'] + '/' + config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation'])
+        bestpth_model_dir = config['model_dir'] + '/' + config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation']) + '_' + str(config['augmentation_types'])
         
         # -- Set output directory
-        output_dir = f"./output/{folder_name}"+ config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation'])
+        output_dir = f"./output/{folder_name}"+ config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation']) + '_' + str(config['augmentation_types'])
         
     else:
         config = {}

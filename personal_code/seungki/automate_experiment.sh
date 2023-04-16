@@ -12,7 +12,7 @@ criterion="cross_entropy"
 optimizer="Adam"
 lr_decay_step=5
 resize_sizes=("224 224")
-augmentation_types=("CenterCrop((320, 256))")
+augmentation_types="[CenterCrop(320, 256)]"
 
 
 # -- Loop over combination of values

@@ -69,7 +69,7 @@ class CustomAugmentation:
             # CenterCrop((350, 256)),
             RandomHorizontalFlip(p=0.5),
             RandomRotation(15),
-            RandomApply([AddGaussianNoise()], p=0.3),
+            # RandomApply([AddGaussianNoise()], p=0.3),
             Resize(resize, Image.BILINEAR),
             # RandomErasing(p=0.3, scale=(0.05,0.05), ratio=(0.5,1)), 
             # RandomApply([ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=0.2),
@@ -334,7 +334,7 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.transform = Compose([
             # -- tta
-            # CenterCrop((320, 256)),
+            CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
             # --
             Resize(resize, Image.BILINEAR),

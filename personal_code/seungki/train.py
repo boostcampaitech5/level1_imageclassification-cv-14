@@ -99,7 +99,7 @@ def train(data_dir, model_dir, args):
 
     seed_everything(args.seed)
 
-    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}"))
+    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.augmentation_types}"))
 
     # -- settings
     use_cuda = torch.cuda.is_available()
@@ -355,7 +355,7 @@ if __name__ == '__main__':
             if key in args.__dict__ and config[key] is not None:
                 args.__dict__[key] = config[key]
                 
-        wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation'])
+        wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation']) + '_' + str(config['augmentation_types'])
         
     else:
         config = {}
@@ -363,7 +363,7 @@ if __name__ == '__main__':
     
     # -- wandb configuration
     
-    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}'
+    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.augmentation_types}'
     
     project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
     wandb.init(project=project_name,name=wandb_runname)
