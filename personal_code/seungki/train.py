@@ -354,13 +354,16 @@ if __name__ == '__main__':
         for key in config:
             if key in args.__dict__ and config[key] is not None:
                 args.__dict__[key] = config[key]
+                
+        wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation'])
+        
     else:
         config = {}
     
     
     # -- wandb configuration
     
-    wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation'])
+    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}'
     
     project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
     wandb.init(project=project_name,name=wandb_runname)

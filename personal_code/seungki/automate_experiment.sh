@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -- Define values for the loop
-models=("EfficientnetB0" "EfficientnetB1" "EfficientnetB2" "EfficientnetB3")
+models=("EfficientnetB0" "EfficientnetB1" "EfficientnetB2" "EfficientnetB3" "vit_small_patch16_224")
 learning_rates=(0.00002 0.00001 0.0001)
 batch_sizes=(64 128)
 epochs=20
