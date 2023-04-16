@@ -99,7 +99,7 @@ def train(data_dir, model_dir, args):
 
     seed_everything(args.seed)
 
-    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}"))
+    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}"))
 
     # -- settings
     use_cuda = torch.cuda.is_available()
@@ -270,8 +270,8 @@ def train(data_dir, model_dir, args):
             if (val_loss > best_val_loss) or (val_acc < best_val_acc):
                 earlystop_cnt+=1
 
-                if earlystop_cnt == 3:
-                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 3 EPOCHS")
+                if earlystop_cnt == 4:
+                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 4 EPOCHS")
                     break
             else:
                 earlystop_cnt = 0

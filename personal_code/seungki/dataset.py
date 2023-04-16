@@ -54,7 +54,7 @@ class CustomAugmentation:
         self.transform = Compose([
             CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
-            RandomHorizontalFlip(p=0.1),
+            # RandomHorizontalFlip(p=0.4),
             Resize(resize, Image.BILINEAR),
             # RandomErasing(p=0.2, scale=(0.05,0.05), ratio=(0.5,1)),
             # RandomApply(Grayscale(num_output_channels=3), p=0.1),
@@ -68,7 +68,7 @@ class CustomAugmentation:
             CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
             RandomHorizontalFlip(p=0.5),
-            RandomRotation(10),
+            RandomRotation(15),
             Resize(resize, Image.BILINEAR),
             # RandomErasing(p=0.3, scale=(0.05,0.05), ratio=(0.5,1)), 
             # RandomApply([AddGaussianNoise()], p=0.3),
@@ -81,7 +81,7 @@ class CustomAugmentation:
         img_path, filename = os.path.split(image.filename)
         age = int(os.path.split(img_path)[-1].split("_")[-1])
         
-        if age < 57:
+        if age < 61:
             return self.transform(image)
         else:
             return self.transform_60(image)
@@ -126,9 +126,10 @@ class AgeLabels(int, Enum):
         
         if value < 30:
             return cls.YOUNG
-        # elif value < 60:
-        elif value < 56:
+        elif value < 60:
             return cls.MIDDLE
+        # elif value < 56:
+        #     return cls.MIDDLE
         else:
             return cls.OLD
 
@@ -178,8 +179,8 @@ class MaskBaseDataset(Dataset):
                 mask_label = self._file_names[_file_name]
                 
                 # -- exclude mask 3, 4
-                if mask_label == "mask3" or mask_label == "mask4":
-                    continue
+                # if mask_label == "mask3" or mask_label == "mask4":
+                #     continue
 
                 id, gender, race, age = profile.split("_")
                 
@@ -333,7 +334,7 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.transform = Compose([
             # -- tta
-            CenterCrop((320, 256)),
+            # CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
             # --
             Resize(resize, Image.BILINEAR),

@@ -1,7 +1,7 @@
 {
     "dataset": "MaskSplitByProfileDataset",
-    "model": "EfficientnetB1",
-    "augmentation": "CustomAugmentation",
+    "model": "Vitsmall_patch16_224",
+    "augmentation": "BaseAugmentation",
     "optimizer": "Adam",
     "epochs": 20,
     "resize": [
@@ -10,7 +10,7 @@
     ],
     "batch_size": 128,
     "valid_batch_size": 256,
-    "lr": 0.00002,
+    "lr": 0.0001,
     "val_ratio": 0.2,
     "lr_decay_step": 5,
     "log_interval": 20,
@@ -18,5 +18,5 @@
     "data_dir": "/opt/ml/input/data/train/images",
     "eval_data_dir": "/opt/ml/input/data/eval",
     "model_dir": "./model",
-    "augmentation_types" : []
+    "augmentation_types" : ["CenterCrop((320, 256))"]
 }
