@@ -126,9 +126,10 @@ class AgeLabels(int, Enum):
         
         if value < 30:
             return cls.YOUNG
-        # elif value < 60:
-        elif value < 56:
+        elif value < 60:
             return cls.MIDDLE
+        # elif value < 56:
+        #     return cls.MIDDLE
         else:
             return cls.OLD
 
@@ -178,8 +179,8 @@ class MaskBaseDataset(Dataset):
                 mask_label = self._file_names[_file_name]
                 
                 # -- exclude mask 3, 4
-                if mask_label == "mask3" or mask_label == "mask4":
-                    continue
+                # if mask_label == "mask3" or mask_label == "mask4":
+                #     continue
 
                 id, gender, race, age = profile.split("_")
                 
@@ -333,7 +334,7 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.transform = Compose([
             # -- tta
-            CenterCrop((320, 256)),
+            # CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
             # --
             Resize(resize, Image.BILINEAR),
