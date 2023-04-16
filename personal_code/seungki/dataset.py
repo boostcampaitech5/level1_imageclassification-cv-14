@@ -178,8 +178,8 @@ class MaskBaseDataset(Dataset):
                 
                 mask_label = self._file_names[_file_name]
                 
-                #-- exclude mask 3, 4
-                if mask_label == "mask2" or mask_label == "mask4":
+                #-- exclude mask 1,2,4
+                if mask_label == "mask2" or mask_label == "mask4" or mask_label == "mask1":
                     continue
 
                 id, gender, race, age = profile.split("_")
