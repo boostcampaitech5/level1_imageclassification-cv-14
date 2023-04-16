@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # -- Define values for the loop
-models=("model1" "model2" "model3")
-learning_rates=(0.001 0.01 0.1)
-batch_sizes=(32 64 128)
+models=("EfficientnetB0" "EfficientnetB1" "EfficientnetB2" "EfficientnetB3")
+learning_rates=(0.00002 0.00001 0.0001)
+batch_sizes=(64 128)
 epochs=20
-augmentation="BaseAugmentation"
+augmentation="CustomAugmentation"
 dataset="MaskSplitByProfileDataset"
 valid_batch_size=256
 criterion="cross_entropy"
 optimizer="Adam"
 lr_decay_step=5
 resize_sizes=(224)
-augmentation_types=[]
+augmentation_types=["CenterCrop((320, 256))"]
 
 
 # -- Loop over combination of values
