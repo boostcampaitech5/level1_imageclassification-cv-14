@@ -13,7 +13,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR, ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -157,15 +157,19 @@ def train(data_dir, model_dir, args):
         lr=args.lr,
         weight_decay=5e-4
     )
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
-    # scheduler = CosineAnnealingLR(optimizer, args.lr_decay_step)
-
+    
+#     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+#     scheduler = CosineAnnealingLR(optimizer, args.lr_decay_step)
+#     scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=args.lr_decay_step)
+    scheduler = ReduceLROnPlateau(optimizer, factor=0.1, mode="min", patience=args.lr_decay_step)
+    
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
     with open(os.path.join(save_dir, f'{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
 
     best_val_acc = 0
+    best_f1_score = 0
     best_val_loss = np.inf
     
     # -- train loop
@@ -218,8 +222,8 @@ def train(data_dir, model_dir, args):
             # del inputs
             # del labels
             
-            
-        scheduler.step()
+        # -- steplr scheduler step    
+#         scheduler.step()
 
         # -- val loop
         with torch.no_grad():
@@ -259,33 +263,45 @@ def train(data_dir, model_dir, args):
                 #     )
             
             f1 = f1_score(y_true, y_pred, average="macro")
+            best_f1_score = max(best_f1_score, f1)
             precision = precision_score(y_true, y_pred, average="macro")
             recall = recall_score(y_true, y_pred, average="macro")    
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_loss = min(best_val_loss, val_loss)
             
+            # -- scheduler step for plateu min
+            scheduler.step(val_loss)
             
             # -- Early Stopping, 
             if (val_loss > best_val_loss) or (val_acc < best_val_acc):
                 earlystop_cnt+=1
 
-                if earlystop_cnt == 4:
-                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 4 EPOCHS")
+                if earlystop_cnt == 6:
+                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 6 EPOCHS")
                     break
             else:
                 earlystop_cnt = 0
             
-            
+            # -- best val acc save
             if val_acc > best_val_acc:
-                print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
-                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+#                 print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
+#                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_acc = val_acc
+#             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
+            
+            # -- best f1 score save
+            if f1 > best_f1_score:
+                print(f"New best model for f1 score : {f1:4.2%}! saving the best model..")
+                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+                best_f1_score = f1
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
+            
+            
             print(
                 f"[VAL] ACC : {val_acc:4.2%}, LOSS : {val_loss:4.2} || "
                 f"BEST ACC : {best_val_acc:4.2%}, BEST LOSS : {best_val_loss:4.2} || "
-                f"F1 SCORE : {f1:4.2%}"
+                f"F1 SCORE : {f1:4.2%}, BEST F1 SCORE : {best_f1_score:4.2%} ||"
                 # f"precision : {precision:4.2%}, recall : {recall:4.2%}"
             )
             # logger.add_scalar("Val/loss", val_loss, epoch)
@@ -320,7 +336,7 @@ if __name__ == '__main__':
     
     #-- parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=int, default=[224, 224], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=int, default=[380, 380], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=256, help='input batch size for validing (default: 256)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
@@ -331,7 +347,9 @@ if __name__ == '__main__':
     parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 5)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default=None, help='model save at {SM_MODEL_DIR}/{name}')
-
+    
+    parser.add_argument('--schedular', default=None, help='schedular')
+    
     #-- pass on arguments for wandb
     parser.add_argument('--augmentation_types', default=None, help='augmentation logging for wandb')
     
@@ -354,8 +372,12 @@ if __name__ == '__main__':
         for key in config:
             if key in args.__dict__ and config[key] is not None:
                 args.__dict__[key] = config[key]
-                
-        wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation']) + '_' + str(config['augmentation_types'])
+        
+        # -- wandb runname using augmentation types
+#         wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation']) + '_' + str(config['augmentation_types'])
+        
+        # -- wandb runname using name of augmentation class
+        wandb_runname = config['model'] + '_' + str(config['epochs']) + '_' + str(config['batch_size']) + '_' + str(config['lr']) + '_' + str(config['augmentation'])
         
     else:
         config = {}
@@ -365,7 +387,12 @@ if __name__ == '__main__':
     
     wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.augmentation_types}'
     
-    project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
+
+#     project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
+#     project_name = "Custom augmentation experiments"
+
+    project_name = "Augmentation comparison one by one"
+    
     wandb.init(project=project_name,name=wandb_runname)
     
     wandb_config={

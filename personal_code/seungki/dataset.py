@@ -48,7 +48,7 @@ class AddGaussianNoise(object):
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
-
+# -- custom augmentation 
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
@@ -68,7 +68,7 @@ class CustomAugmentation:
             CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
             RandomHorizontalFlip(p=0.5),
-            RandomRotation(15),
+            RandomRotation(10),
             # RandomApply([AddGaussianNoise()], p=0.3),
             Resize(resize, Image.BILINEAR),
             # RandomErasing(p=0.3, scale=(0.05,0.05), ratio=(0.5,1)), 
@@ -81,13 +81,89 @@ class CustomAugmentation:
         img_path, filename = os.path.split(image.filename)
         age = int(os.path.split(img_path)[-1].split("_")[-1])
         
-        if age < 57:
+        if age < 58:
             return self.transform(image)
         else:
             return self.transform_60(image)
 
     # def __call__(self, image):
     #     return self.transform(image)
+
+    
+# -- centercrop
+class centercrop:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((320, 256)),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+# -- random erasing
+class randomerasing:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random')
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+# -- horizontalflip
+class randomhorizontalflip:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            RandomHorizontalFlip(p=0.5),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+# -- random rotation
+class randomrotation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            RandomRotation(degrees=15, p=0.5),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+# -- colorjitter 0.1
+class colorjitter:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+# -- gaussian noise
+class gaussiannoise:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            AddGaussianNoise()
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
 
 
 class MaskLabels(int, Enum):
@@ -126,10 +202,10 @@ class AgeLabels(int, Enum):
         
         if value < 30:
             return cls.YOUNG
-        # elif value < 60:
-        #     return cls.MIDDLE
-        elif value < 57:
+        elif value < 60:
             return cls.MIDDLE
+#         elif value < 57:
+#             return cls.MIDDLE
         else:
             return cls.OLD
 
@@ -179,8 +255,8 @@ class MaskBaseDataset(Dataset):
                 mask_label = self._file_names[_file_name]
                 
                 #-- exclude mask 1,2,4
-                if mask_label == "mask2" or mask_label == "mask4" or mask_label == "mask1":
-                    continue
+#                 if mask_label == "mask2" or mask_label == "mask4" or mask_label == "mask1":
+#                     continue
 
                 id, gender, race, age = profile.split("_")
                 
@@ -334,7 +410,7 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.transform = Compose([
             # -- tta
-            CenterCrop((320, 256)),
+#             CenterCrop((320, 256)),
             # CenterCrop((350, 256)),
             # --
             Resize(resize, Image.BILINEAR),

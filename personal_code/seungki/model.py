@@ -115,3 +115,31 @@ class Vitsmall_patch16_224(nn.Module):
     def forward(self, x):
         x = self.backbone(x)
         return x
+    
+
+# --Resnet34 pretrained=True 
+
+class Resnet34(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        
+        self.backbone = models.resnet34(pretrained=True)
+        self.backbone.head = nn.Linear(512, num_classes)
+        
+    def forward(self, x):
+        x = self.backbone(x)
+        return x
+    
+
+# --Resnet50 pretrained=True 
+
+class Resnet50(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        
+        self.backbone = models.resnet50(pretrained=True)
+        self.backbone.head = nn.Linear(2048, num_classes)
+        
+    def forward(self, x):
+        x = self.backbone(x)
+        return x
