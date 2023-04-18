@@ -7,7 +7,8 @@ batch_sizes=(32)
 epochs=35
 # augmentation="CustomAugmentation"
 # -- send augmentation type as argument to file name
-augmentation=("centercrop" "randomerasing" "randomhorizontalflip" "colorjitter" "randomrotation" "gaussiannoise")
+# "centercrop" "randomerasing" "randomhorizontalflip" "colorjitter" "randomrotation" "gaussiannoise"
+augmentation=("randomrotation")
 dataset="MaskSplitByProfileDataset"
 valid_batch_size=256
 criterion=("focal")

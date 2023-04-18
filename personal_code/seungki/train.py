@@ -263,7 +263,7 @@ def train(data_dir, model_dir, args):
                 #     )
             
             f1 = f1_score(y_true, y_pred, average="macro")
-            best_f1_score = max(best_f1_score, f1)
+            # best_f1_score = max(best_f1_score, f1)
             precision = precision_score(y_true, y_pred, average="macro")
             recall = recall_score(y_true, y_pred, average="macro")    
             val_loss = np.sum(val_loss_items) / len(val_loader)
@@ -277,8 +277,8 @@ def train(data_dir, model_dir, args):
             if (val_loss > best_val_loss) or (val_acc < best_val_acc):
                 earlystop_cnt+=1
 
-                if earlystop_cnt == 6:
-                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 6 EPOCHS")
+                if earlystop_cnt == 9:
+                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 9 EPOCHS")
                     break
             else:
                 earlystop_cnt = 0

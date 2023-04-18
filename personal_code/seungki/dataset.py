@@ -130,7 +130,7 @@ class randomhorizontalflip:
 class randomrotation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            RandomRotation(degrees=15, p=0.5),
+            RandomRotation(degrees=15),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
@@ -150,6 +150,19 @@ class colorjitter:
 
     def __call__(self, image):
         return self.transform(image)
+# -- random colorjitter
+class randomcolorjitter:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomApply([ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)], p=0.5)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
 # -- gaussian noise
 class gaussiannoise:
     def __init__(self, resize, mean, std, **args):
@@ -163,6 +176,35 @@ class gaussiannoise:
     def __call__(self, image):
         return self.transform(image)
 
+# -- random gaussian noise
+class randomgaussiannoise:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomApply([AddGaussianNoise()], p=0.5)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+# -- everything
+class gn_cj_cc_re_rhf_rr:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((320, 256)),
+            RandomHorizontalFlip(p=0.5),
+            RandomRotation(degrees=15),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+            AddGaussianNoise(),
+            RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random')
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
 
 
 
