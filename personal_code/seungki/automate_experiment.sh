@@ -17,17 +17,17 @@ lr_decay_step=(5 3)
 augmentation_types="[]"
 
 
-# -- Loop over combination of values -- with augmentation loop
-for model in "${models[@]}"; do
-    for lr in "${learning_rates[@]}"; do
-        for batch_size in "${batch_sizes[@]}"; do
-            for augmentation_name in "${augmentation[@]}"; do
-            # -- Run train.py of different values
-                    python train.py --model "$model" --lr "$lr" --batch_size "$batch_size" --epochs "$epochs" --augmentation "$augmentation_name" --dataset "$dataset" --valid_batch_size "$valid_batch_size" --criterion "$criterion" --optimizer "$optimizer" --lr_decay_step "$lr_decay_step" --augmentation_types "$augmentation_types"
-            done
-        done
-    done
-done
+# # -- Loop over combination of values -- with augmentation loop
+# for model in "${models[@]}"; do
+#     for lr in "${learning_rates[@]}"; do
+#         for batch_size in "${batch_sizes[@]}"; do
+#             for augmentation_name in "${augmentation[@]}"; do
+#             # -- Run train.py of different values
+#                     python train.py --model "$model" --lr "$lr" --batch_size "$batch_size" --epochs "$epochs" --augmentation "$augmentation_name" --dataset "$dataset" --valid_batch_size "$valid_batch_size" --criterion "$criterion" --optimizer "$optimizer" --lr_decay_step "$lr_decay_step" --augmentation_types "$augmentation_types"
+#             done
+#         done
+#     done
+# done
 
 # -- Loop over combination of values -- no augmentation loop
 # for model in "${models[@]}"; do
@@ -47,7 +47,7 @@ for model in "${models[@]}"; do
                 for lds in "${lr_decay_step[@]}"; do
                     for op in "${optimizer[@]}"; do
                         # -- Run train.py of different values
-                            python train.py --model "$model" --lr "$lr" --batch_size "$batch_size" --epochs "$epochs" --augmentation "$augmentation_name" --dataset "$dataset" --valid_batch_size "$valid_batch_size" --criterion "$criterion" --optimizer "$op" --lr_decay_step "$lds" --augmentation_types "$augmentation_types"
+                            python train.py --model "$model" --lr "$lr" --batch_size "$batch_size" --epochs "$epochs" --augmentation "$augmentation" --dataset "$dataset" --valid_batch_size "$valid_batch_size" --criterion "$cr" --optimizer "$op" --lr_decay_step "$lds" --augmentation_types "$augmentation_types"
                     done
                 done
             done

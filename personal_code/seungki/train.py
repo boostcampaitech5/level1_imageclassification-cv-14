@@ -99,7 +99,7 @@ def train(data_dir, model_dir, args):
 
     seed_everything(args.seed)
 
-    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.augmentation_types}"))
+    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}"))
 
     # -- settings
     use_cuda = torch.cuda.is_available()
@@ -393,7 +393,7 @@ if __name__ == '__main__':
     # wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}'
     
     # 3. name for hyperparameter
-    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}_{args.scheduler}_{args.weight_decay}'
+    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}_{args.scheduler}_{args.optimizer}_{args.weight_decay}_{args.lr_decay_step}'
     
 
     # project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
