@@ -6,9 +6,18 @@ from typing import Tuple, List
 
 import numpy as np
 import torch
+
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomErasing, RandomHorizontalFlip, RandomApply, Grayscale, RandomRotation
+from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomErasing, RandomHorizontalFlip, RandomApply, Grayscale, RandomRotation, ToPILImage, RandomAffine
+
+from torchvision.transforms import functional as F
+
+
+from albumentations.pytorch import ToTensorV2
+import albumentations as a
+
+
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -78,9 +87,9 @@ class CustomAugmentation:
         ])
 
     def __call__(self, image):
-        img_path, filename = os.path.split(image.filename)
+        img_path, filename = os.path.split(image)
         age = int(os.path.split(img_path)[-1].split("_")[-1])
-        
+        print(age)
         if age < 58:
             return self.transform(image)
         else:
@@ -205,8 +214,124 @@ class gn_cj_cc_re_rhf_rr:
 
     def __call__(self, image):
         return self.transform(image)
+# -- centercrop and randomhorizontalflip
+class cc_rhf:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((320, 256)),
+            RandomHorizontalFlip(p=0.5),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+    
+# -- centercrop and randomhorizontalflip and randomrotation
+class cc_rhf_rr:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((320, 256)),
+            RandomHorizontalFlip(p=0.5),
+            RandomRotation(degrees=15),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+# -- centercrop and randomhorizontalflip and randomrotation and randomcolorjitter
+class cc_rhf_rr_rcj:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((320, 256)),
+            RandomHorizontalFlip(p=0.5),
+            RandomRotation(degrees=15),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomApply([ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)], p=0.5)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
 
 
+# -- random Affine
+class randomaffine:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            RandomAffine(degrees=0, translate=(0, 0.2)),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+# -- random Affine and centercrop
+class ra_cc:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((320, 256)),
+            RandomAffine(degrees=0, translate=(0, 0.2)),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+    
+# -- fancy pca
+class fancy_pca:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = a.Compose([
+            a.Resize(resize, Image.BILINEAR),
+            a.Normalize(mean=mean, std=std),
+            a.FancyPCA(alpha=0.2),
+            ToPILImage(),
+            ToTensor()
+        ])
+
+    def __call__(self, image):
+        transformed = self.transform(image=image)
+        return transformed['image']
+    
+# -- coarse dropout
+class coarse_dropout:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = a.Compose([
+            a.Resize(resize, Image.BILINEAR),
+            a.Normalize(mean=mean, std=std),
+            a.CoarseDropout(max_holes=8, max_height=16, max_width=16, p=0.5),
+            ToTensorV2()
+        ])
+
+    def __call__(self, image):
+        transformed = self.transform(image=image)
+        return transformed['image']
+
+# -- shift up and down
+class shift_scale_rotate:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = a.Compose([
+            a.Resize(resize, Image.BILINEAR),
+            a.Normalize(mean=mean, std=std),
+            a.ShiftScaleRotate(shift_limit=0.2, scale_limit=0, rotate_limit=0, p=0.5),
+            ToTensorV2()
+        ])
+
+    def __call__(self, image):
+        transformed = self.transform(image=image)
+        return transformed['image']
+    
+    
+    
 
 class MaskLabels(int, Enum):
     MASK = 0
@@ -246,8 +371,6 @@ class AgeLabels(int, Enum):
             return cls.YOUNG
         elif value < 60:
             return cls.MIDDLE
-#         elif value < 57:
-#             return cls.MIDDLE
         else:
             return cls.OLD
 
@@ -295,10 +418,6 @@ class MaskBaseDataset(Dataset):
                 img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                 
                 mask_label = self._file_names[_file_name]
-                
-                #-- exclude mask 1,2,4
-#                 if mask_label == "mask2" or mask_label == "mask4" or mask_label == "mask1":
-#                     continue
 
                 id, gender, race, age = profile.split("_")
                 
@@ -332,6 +451,10 @@ class MaskBaseDataset(Dataset):
         assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
 
         image = self.read_image(index)
+        
+        # to np array
+        # image = np.array(image)
+        
         mask_label = self.get_mask_label(index)
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
@@ -387,7 +510,7 @@ class MaskBaseDataset(Dataset):
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
-
+    
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
     """

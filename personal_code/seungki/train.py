@@ -120,10 +120,10 @@ def train(data_dir, model_dir, args):
         std=dataset.std,
     )
     dataset.set_transform(transform)
-
+    
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
-
+    
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
@@ -155,7 +155,7 @@ def train(data_dir, model_dir, args):
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.lr,
-        weight_decay=5e-4
+        weight_decay=args.weight_decay
     )
     
 #     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
@@ -274,14 +274,14 @@ def train(data_dir, model_dir, args):
             scheduler.step(val_loss)
             
             # -- Early Stopping, 
-            if (val_loss > best_val_loss) or (val_acc < best_val_acc):
-                earlystop_cnt+=1
+            # if (val_loss > best_val_loss) or (val_acc < best_val_acc):
+            #     earlystop_cnt+=1
 
-                if earlystop_cnt == 9:
-                    print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 9 EPOCHS")
-                    break
-            else:
-                earlystop_cnt = 0
+            #     if earlystop_cnt == 17:
+            #         print("EARLY STOPPED. NO SIGNIFICANT CHANGE IN VALIDATION PERFORMANCE FOR 17 EPOCHS")
+            #         break
+            # else:
+            #     earlystop_cnt = 0
             
             # -- best val acc save
             if val_acc > best_val_acc:
@@ -329,14 +329,14 @@ if __name__ == '__main__':
 
     #-- Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 30)')
+    parser.add_argument('--epochs', type=int, default=25, help='number of epochs to train (default: 30)')
     
     #-- parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
     
     #-- parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=int, default=[380, 380], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=int, default=[224, 224], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=256, help='input batch size for validing (default: 256)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
@@ -348,7 +348,8 @@ if __name__ == '__main__':
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default=None, help='model save at {SM_MODEL_DIR}/{name}')
     
-    parser.add_argument('--schedular', default=None, help='schedular')
+    parser.add_argument('--weight_decay', type=float, default=0.0005, help='weight decay for optimizer')
+    parser.add_argument('--scheduler', default='ReduceLROnPlateau', help='scheduler')
     
     #-- pass on arguments for wandb
     parser.add_argument('--augmentation_types', default=None, help='augmentation logging for wandb')
@@ -385,14 +386,23 @@ if __name__ == '__main__':
     
     # -- wandb configuration
     
-    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.augmentation_types}'
+    # 1. name with augmentation types(or notes)
+    # wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.augmentation_types}'
+    
+    # 2. name with without augmentation types(or notes)
+    # wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}'
+    
+    # 3. name for hyperparameter
+    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}_{args.scheduler}_{args.weight_decay}'
     
 
-#     project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
-#     project_name = "Custom augmentation experiments"
+    # project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
+    # project_name = "Custom augmentation experiments"
 
-    project_name = "Augmentation comparison one by one"
+    # project_name = "Augmentation comparison one by one"
     
+    project_name = "hyperparameter comparison"
+    # project_name = "Test run 1"
     wandb.init(project=project_name,name=wandb_runname)
     
     wandb_config={
@@ -406,6 +416,8 @@ if __name__ == '__main__':
     "resize": args.resize,
     "augmentation" : args.augmentation,
     "lr_decay_step" : args.lr_decay_step,
+    "weight_decay" : args.weight_decay,
+    "scheduler" : args.scheduler,
     "augmentation_types" : args.augmentation_types
     }
     
