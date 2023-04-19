@@ -158,7 +158,7 @@ def train(data_dir, model_dir, args):
         weight_decay=args.weight_decay
     )
     
-#     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    # scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.1)
 #     scheduler = CosineAnnealingLR(optimizer, args.lr_decay_step)
 #     scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=args.lr_decay_step)
     scheduler = ReduceLROnPlateau(optimizer, factor=0.1, mode="min", patience=args.lr_decay_step)
@@ -223,7 +223,7 @@ def train(data_dir, model_dir, args):
             # del labels
             
         # -- steplr scheduler step    
-#         scheduler.step()
+        # scheduler.step()
 
         # -- val loop
         with torch.no_grad():
@@ -402,6 +402,7 @@ if __name__ == '__main__':
     # project_name = "Augmentation comparison one by one"
     
     project_name = "hyperparameter comparison"
+    # project_name = "Augmentation without earlystopping"
     # project_name = "Test run 1"
     wandb.init(project=project_name,name=wandb_runname)
     

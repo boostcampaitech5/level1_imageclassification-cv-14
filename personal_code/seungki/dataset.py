@@ -103,7 +103,7 @@ class CustomAugmentation:
 class centercrop:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
+            CenterCrop((380, 380)),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
@@ -171,6 +171,21 @@ class randomcolorjitter:
 
     def __call__(self, image):
         return self.transform(image)
+    
+# -- random gaussian noise and centercrop and random affine
+class rgn_cc_ra:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((380, 380)),
+            RandomAffine(degrees=0, translate=(0, 0.2)),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomApply([AddGaussianNoise()], p=0.5)
+        ])    
+    
+    def __call__(self, image):
+        return self.transform(image)
 
 # -- gaussian noise
 class gaussiannoise:
@@ -201,7 +216,7 @@ class randomgaussiannoise:
 class gn_cj_cc_re_rhf_rr:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
+            CenterCrop((380, 380)),
             RandomHorizontalFlip(p=0.5),
             RandomRotation(degrees=15),
             Resize(resize, Image.BILINEAR),
@@ -218,11 +233,25 @@ class gn_cj_cc_re_rhf_rr:
 class cc_rhf:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
+            CenterCrop((380, 380)),
             RandomHorizontalFlip(p=0.5),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+# -- centercrop and randomerasing
+class cc_re:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((380, 380)),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random')
         ])
 
     def __call__(self, image):
@@ -232,7 +261,7 @@ class cc_rhf:
 class cc_rhf_rr:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
+            CenterCrop((380, 380)),
             RandomHorizontalFlip(p=0.5),
             RandomRotation(degrees=15),
             Resize(resize, Image.BILINEAR),
@@ -247,7 +276,7 @@ class cc_rhf_rr:
 class cc_rhf_rr_rcj:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
+            CenterCrop((380, 380)),
             RandomHorizontalFlip(p=0.5),
             RandomRotation(degrees=15),
             Resize(resize, Image.BILINEAR),
@@ -277,7 +306,7 @@ class randomaffine:
 class ra_cc:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
+            CenterCrop((380, 380)),
             RandomAffine(degrees=0, translate=(0, 0.2)),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
