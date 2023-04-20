@@ -23,7 +23,7 @@ from loss import create_criterion
 
 import wandb
 
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
 
 import gc
 
@@ -99,7 +99,7 @@ def train(data_dir, model_dir, args):
 
     seed_everything(args.seed)
 
-    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}"))
+    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}_{args.augmentation_types}"))
 
     # -- settings
     use_cuda = torch.cuda.is_available()
@@ -262,6 +262,7 @@ def train(data_dir, model_dir, args):
                 #         inputs_np, labels, preds, n=16, shuffle=args.dataset != "MaskSplitByProfileDataset"
                 #     )
             
+            # auroc = roc_auc_score(y_true, y_pred, average='macro')
             f1 = f1_score(y_true, y_pred, average="macro")
             # best_f1_score = max(best_f1_score, f1)
             precision = precision_score(y_true, y_pred, average="macro")
@@ -302,6 +303,7 @@ def train(data_dir, model_dir, args):
                 f"[VAL] ACC : {val_acc:4.2%}, LOSS : {val_loss:4.2} || "
                 f"BEST ACC : {best_val_acc:4.2%}, BEST LOSS : {best_val_loss:4.2} || "
                 f"F1 SCORE : {f1:4.2%}, BEST F1 SCORE : {best_f1_score:4.2%} ||"
+                # f"AUROC : {auroc:4.2%}"
                 # f"precision : {precision:4.2%}, recall : {recall:4.2%}"
             )
             # logger.add_scalar("Val/loss", val_loss, epoch)
@@ -329,14 +331,14 @@ if __name__ == '__main__':
 
     #-- Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=25, help='number of epochs to train (default: 30)')
+    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 30)')
     
     #-- parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
     
     #-- parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=int, default=[224, 224], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=int, default=[380, 380], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=256, help='input batch size for validing (default: 256)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
@@ -401,7 +403,7 @@ if __name__ == '__main__':
 
     # project_name = "Augmentation comparison one by one"
     
-    project_name = "hyperparameter comparison"
+    project_name = "Final Models"
     # project_name = "Augmentation without earlystopping"
     # project_name = "Test run 1"
     wandb.init(project=project_name,name=wandb_runname)

@@ -95,8 +95,11 @@ class EfficientnetB4(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         
-        self.backbone = timm.create_model('efficientnet_b4', pretrained=True)
-        self.backbone.classifier = nn.Linear(1792, num_classes)
+        self.num_classes = num_classes
+        self.backbone = timm.create_model('efficientnet_b4', num_classes = self.num_classes, pretrained = True)
+        
+        # self.backbone = timm.create_model('efficientnet_b4', pretrained=True)
+        # self.backbone.classifier = nn.Linear(1792, num_classes)
         
     def forward(self, x):
         x = self.backbone(x)

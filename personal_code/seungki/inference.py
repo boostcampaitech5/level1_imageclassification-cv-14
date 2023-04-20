@@ -81,8 +81,8 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default=None, help='config file path (default: None)')
 
     # Data and model checkpoints directories
-    parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--resize', type=tuple, default=(224, 224), help='resize size for image when you trained (default: (224, 224))')
+    parser.add_argument('--batch_size', type=int, default=256, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--resize', type=tuple, default=(380, 380), help='resize size for image when you trained (default: (224, 224))')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
 
     # Container environment

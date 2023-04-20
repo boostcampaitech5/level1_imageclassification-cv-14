@@ -18,7 +18,6 @@ from albumentations.pytorch import ToTensorV2
 import albumentations as a
 
 
-
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
     ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
@@ -61,253 +60,126 @@ class AddGaussianNoise(object):
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            CenterCrop((320, 256)),
-            # CenterCrop((350, 256)),
-            RandomHorizontalFlip(p=0.2),
+            CenterCrop((380,380)),
             Resize(resize, Image.BILINEAR),
-            # RandomErasing(p=0.2, scale=(0.05,0.05), ratio=(0.5,1)),
-            # RandomApply(Grayscale(num_output_channels=3), p=0.1),
-            # RandomApply([ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=0.2),
+            RandomAffine(degrees=0, translate=(0, 0.1)),
             ToTensor(),
             Normalize(mean=mean, std=std)
-            # AddGaussianNoise()
+            
+        ])
+        
+        self.transform_30_49 = Compose([
+            CenterCrop((380, 380)),
+            RandomHorizontalFlip(p=0.5),
+            # RandomRotation(degrees=10),
+            Resize(resize, Image.BILINEAR),
+            RandomAffine(degrees=0, translate=(0, 0.1)),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
         ])
         
         self.transform_60 = Compose([
-            CenterCrop((320, 256)),
-            # CenterCrop((350, 256)),
+            CenterCrop((380, 380)),
             RandomHorizontalFlip(p=0.5),
-            RandomRotation(10),
-            # RandomApply([AddGaussianNoise()], p=0.3),
+            RandomRotation(degrees=10),
             Resize(resize, Image.BILINEAR),
-            # RandomErasing(p=0.3, scale=(0.05,0.05), ratio=(0.5,1)), 
-            # RandomApply([ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=0.2),
+            RandomAffine(degrees=0, translate=(0, 0.1)),
             ToTensor(),
             Normalize(mean=mean, std=std)
         ])
+        
+        self.transform_negativehue = Compose([ColorJitter(hue=(-0.1, 0))])
 
-    def __call__(self, image):
-        img_path, filename = os.path.split(image)
+    def __call__(self, image_):
+        img_path, filename = os.path.split(image_)
         age = int(os.path.split(img_path)[-1].split("_")[-1])
-        print(age)
-        if age < 58:
+        
+        image = Image.open(image_)
+        
+        # -- Red which has mean over 0.7 apply negative hue
+        # if np.mean(image[:,:,0]) > 0.7:
+        #     image = self.transform_negativehue(image)
+        
+        # print(age)
+        if age<30:
+            return self.transform(image)
+        elif 30<=age<=49:
+            return self.transform_30_49(image)
+        elif 49<age<57:
             return self.transform(image)
         else:
             return self.transform_60(image)
 
+# -- custom augmentation 2
+class CustomAugmentation2:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((300,300)),
+            Resize(resize, Image.BICUBIC),
+            RandomAffine(degrees=0, translate=(0, 0.1)),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+            
+        ])
+        
+        self.transform_30_49 = Compose([
+            CenterCrop((300,300)),
+            RandomHorizontalFlip(p=0.5),
+            RandomRotation(degrees=5),
+            Resize(resize, Image.BICUBIC),
+            RandomAffine(degrees=0, translate=(0, 0.1)),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomApply([AddGaussianNoise()],p=0.2)
+        ])
+        
+        self.transform_60 = Compose([
+            CenterCrop((300,300)),
+            RandomHorizontalFlip(p=0.5),
+            Resize(resize, Image.BICUBIC),
+            RandomRotation(degrees=5),
+            RandomAffine(degrees=0, translate=(0, 0.1)),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+            RandomApply([AddGaussianNoise()],p=0.4)
+        ])
+        
+        self.transform_negativehue = Compose([ColorJitter(hue=(-0.1, 0))])
+
+    def __call__(self, image_):
+        img_path, filename = os.path.split(image_)
+        age = int(os.path.split(img_path)[-1].split("_")[-1])
+        
+        image = Image.open(image_)
+        
+        # -- Red which has mean over 0.7 apply negative hue
+        # if np.mean(image[:,:,0]) > 0.7:
+        #     image = self.transform_negativehue(image)
+        
+        # print(age)
+        if age<30:
+            return self.transform(image)
+        elif 30<=age<=49:
+            return self.transform_30_49(image)
+        elif 49<age<57:
+            return self.transform(image)
+        else:
+            return self.transform_60(image)
+
+
+
     # def __call__(self, image):
     #     return self.transform(image)
 
-    
-# -- centercrop
-class centercrop:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-# -- random erasing
-class randomerasing:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random')
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-# -- horizontalflip
-class randomhorizontalflip:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            RandomHorizontalFlip(p=0.5),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-# -- random rotation
-class randomrotation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            RandomRotation(degrees=15),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-# -- colorjitter 0.1
-class colorjitter:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-# -- random colorjitter
-class randomcolorjitter:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            RandomApply([ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)], p=0.5)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-    
-# -- random gaussian noise and centercrop and random affine
-class rgn_cc_ra:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            RandomAffine(degrees=0, translate=(0, 0.2)),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            RandomApply([AddGaussianNoise()], p=0.5)
-        ])    
-    
-    def __call__(self, image):
-        return self.transform(image)
-
-# -- gaussian noise
-class gaussiannoise:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            AddGaussianNoise()
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-# -- random gaussian noise
-class randomgaussiannoise:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            RandomApply([AddGaussianNoise()], p=0.5)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-# -- everything
-class gn_cj_cc_re_rhf_rr:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            RandomHorizontalFlip(p=0.5),
-            RandomRotation(degrees=15),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-            AddGaussianNoise(),
-            RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random')
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-# -- centercrop and randomhorizontalflip
-class cc_rhf:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            RandomHorizontalFlip(p=0.5),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-# -- centercrop and randomerasing
-class cc_re:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random')
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-    
-# -- centercrop and randomhorizontalflip and randomrotation
-class cc_rhf_rr:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            RandomHorizontalFlip(p=0.5),
-            RandomRotation(degrees=15),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-# -- centercrop and randomhorizontalflip and randomrotation and randomcolorjitter
-class cc_rhf_rr_rcj:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            RandomHorizontalFlip(p=0.5),
-            RandomRotation(degrees=15),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            RandomApply([ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)], p=0.5)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-
-# -- random Affine
-class randomaffine:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            RandomAffine(degrees=0, translate=(0, 0.2)),
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
+# -- Red threshold 210
 
 # -- random Affine and centercrop
 class ra_cc:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
             CenterCrop((380, 380)),
-            RandomAffine(degrees=0, translate=(0, 0.2)),
+            # RandomAffine(degrees=0, translate=(0, 0.2)),
+            RandomAffine(degrees=0, translate=(0, 0.1)),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std)
@@ -316,52 +188,7 @@ class ra_cc:
     def __call__(self, image):
         return self.transform(image)
     
-# -- fancy pca
-class fancy_pca:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = a.Compose([
-            a.Resize(resize, Image.BILINEAR),
-            a.Normalize(mean=mean, std=std),
-            a.FancyPCA(alpha=0.2),
-            ToPILImage(),
-            ToTensor()
-        ])
-
-    def __call__(self, image):
-        transformed = self.transform(image=image)
-        return transformed['image']
     
-# -- coarse dropout
-class coarse_dropout:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = a.Compose([
-            a.Resize(resize, Image.BILINEAR),
-            a.Normalize(mean=mean, std=std),
-            a.CoarseDropout(max_holes=8, max_height=16, max_width=16, p=0.5),
-            ToTensorV2()
-        ])
-
-    def __call__(self, image):
-        transformed = self.transform(image=image)
-        return transformed['image']
-
-# -- shift up and down
-class shift_scale_rotate:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = a.Compose([
-            a.Resize(resize, Image.BILINEAR),
-            a.Normalize(mean=mean, std=std),
-            a.ShiftScaleRotate(shift_limit=0.2, scale_limit=0, rotate_limit=0, p=0.5),
-            ToTensorV2()
-        ])
-
-    def __call__(self, image):
-        transformed = self.transform(image=image)
-        return transformed['image']
-    
-    
-    
-
 class MaskLabels(int, Enum):
     MASK = 0
     INCORRECT = 1
@@ -398,7 +225,8 @@ class AgeLabels(int, Enum):
         
         if value < 30:
             return cls.YOUNG
-        elif value < 60:
+        # -- age 59 to OLD
+        elif value < 59:
             return cls.MIDDLE
         else:
             return cls.OLD
@@ -481,9 +309,6 @@ class MaskBaseDataset(Dataset):
 
         image = self.read_image(index)
         
-        # to np array
-        # image = np.array(image)
-        
         mask_label = self.get_mask_label(index)
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
@@ -504,9 +329,11 @@ class MaskBaseDataset(Dataset):
     def get_age_label(self, index) -> AgeLabels:
         return self.age_labels[index]
 
+    #
     def read_image(self, index):
         image_path = self.image_paths[index]
-        return Image.open(image_path)
+        return image_path
+        # return Image.open(image_path)
 
     @staticmethod
     def encode_multi_class(mask_label, gender_label, age_label) -> int:
@@ -569,7 +396,8 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         profiles = os.listdir(self.data_dir)
         profiles = [profile for profile in profiles if not profile.startswith(".")]
         split_profiles = self._split_profile(profiles, self.val_ratio)
-
+        
+        # random.seed(42)
         cnt = 0
         for phase, indices in split_profiles.items():
             for _idx in indices:
@@ -584,6 +412,32 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     mask_label = self._file_names[_file_name]
 
                     id, gender, race, age = profile.split("_")
+                    
+                    # -- age 57, 58, 59 removal
+                    if 57<=int(age)<=59:
+                        continue
+                    
+                    # -- age 28, 29, 30, 31 removal
+                    if 28<=int(age)<=31:
+                        continue
+                    
+                    #-- age 59 90% probability removal
+                    # if int(age)==59 and random.random() <= 0.95:
+                    #     continue
+                    
+                    # -- age 19 30% probability removal
+                    if int(age)==19 and random.random() <= 0.32:
+                        continue
+                    
+                    # -- age 20 20% probability removal
+                    if int(age)==20 and random.random() <= 0.2:
+                        continue
+                    
+                    # -- mask 2,4 5% probability removal
+                    # if mask_label in ["mask2","mask4"] and 51<int(age)<57 and 18<=int(age)<21 and random.random() <= 0.05:
+                    #     continue
+                    
+                
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
 
@@ -604,10 +458,11 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.transform = Compose([
             # -- tta
-#             CenterCrop((320, 256)),
+            CenterCrop((380, 380)),
+            # RandomAffine(degrees=0, translate=(0, 0.05)),
             # CenterCrop((350, 256)),
             # --
-            Resize(resize, Image.BILINEAR),
+            Resize(resize, Image.BICUBIC),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])

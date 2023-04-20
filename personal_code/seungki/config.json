@@ -1,22 +1,23 @@
 {
     "dataset": "MaskSplitByProfileDataset",
-    "model": "EfficientnetB2",
-    "augmentation": "CustomAugmentation",
+    "model": "EfficientnetB4",
+    "augmentation": "CustomAugmentation2",
     "optimizer": "Adam",
     "epochs": 30,
     "resize": [
-        224,
-        224
+        380,
+        380
     ],
-    "batch_size": 64,
+    "criterion": "label_smoothing",
+    "batch_size": 32,
     "valid_batch_size": 256,
-    "lr": 0.00001,
+    "lr": 0.0001,
     "val_ratio": 0.2,
-    "lr_decay_step": 4,
+    "lr_decay_step": 5,
     "log_interval": 20,
     "name": "",
     "data_dir": "/opt/ml/input/data/train/images",
     "eval_data_dir": "/opt/ml/input/data/eval",
     "model_dir": "./model",
-    "augmentation_types" : "[CenterCrop(320, 256)]"
+    "augmentation_types" : "[]"
 }
