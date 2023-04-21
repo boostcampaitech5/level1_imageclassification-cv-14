@@ -166,19 +166,11 @@ class CustomAugmentation2:
         else:
             return self.transform_60(image)
 
-
-
-    # def __call__(self, image):
-    #     return self.transform(image)
-
-# -- Red threshold 210
-
 # -- random Affine and centercrop
 class ra_cc:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
             CenterCrop((380, 380)),
-            # RandomAffine(degrees=0, translate=(0, 0.2)),
             RandomAffine(degrees=0, translate=(0, 0.1)),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
@@ -187,6 +179,48 @@ class ra_cc:
 
     def __call__(self, image):
         return self.transform(image)
+
+# -- center crop
+class cc:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            CenterCrop((380, 380)),
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+# -- random gaussian noise
+class rgn:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            RandomApply([AddGaussianNoise()],p=0.5)
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+# -- random colorjitter
+class rgn:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            RandomApply([ColorJitter(0.1,0.1,0.1,0.1)],p=0.5)
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
+
     
     
 class MaskLabels(int, Enum):
@@ -225,8 +259,7 @@ class AgeLabels(int, Enum):
         
         if value < 30:
             return cls.YOUNG
-        # -- age 59 to OLD
-        elif value < 59:
+        elif value < 60:
             return cls.MIDDLE
         else:
             return cls.OLD
@@ -329,11 +362,12 @@ class MaskBaseDataset(Dataset):
     def get_age_label(self, index) -> AgeLabels:
         return self.age_labels[index]
 
-    #
+    
     def read_image(self, index):
         image_path = self.image_paths[index]
-        return image_path
-        # return Image.open(image_path)
+        # -- augmentation age read on/off
+        # return image_path
+        return Image.open(image_path)
 
     @staticmethod
     def encode_multi_class(mask_label, gender_label, age_label) -> int:
@@ -414,24 +448,24 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     id, gender, race, age = profile.split("_")
                     
                     # -- age 57, 58, 59 removal
-                    if 57<=int(age)<=59:
-                        continue
+                    # if 57<=int(age)<=59:
+                    #     continue
                     
                     # -- age 28, 29, 30, 31 removal
-                    if 28<=int(age)<=31:
-                        continue
+                    # if 28<=int(age)<=31:
+                    #     continue
                     
                     #-- age 59 90% probability removal
                     # if int(age)==59 and random.random() <= 0.95:
                     #     continue
                     
                     # -- age 19 30% probability removal
-                    if int(age)==19 and random.random() <= 0.32:
-                        continue
+                    # if int(age)==19 and random.random() <= 0.32:
+                    #     continue
                     
-                    # -- age 20 20% probability removal
-                    if int(age)==20 and random.random() <= 0.2:
-                        continue
+                    # # -- age 20 20% probability removal
+                    # if int(age)==20 and random.random() <= 0.2:
+                    #     continue
                     
                     # -- mask 2,4 5% probability removal
                     # if mask_label in ["mask2","mask4"] and 51<int(age)<57 and 18<=int(age)<21 and random.random() <= 0.05:
@@ -458,11 +492,11 @@ class TestDataset(Dataset):
         self.img_paths = img_paths
         self.transform = Compose([
             # -- tta
-            CenterCrop((380, 380)),
+            # CenterCrop((380, 380)),
             # RandomAffine(degrees=0, translate=(0, 0.05)),
             # CenterCrop((350, 256)),
             # --
-            Resize(resize, Image.BICUBIC),
+            Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
