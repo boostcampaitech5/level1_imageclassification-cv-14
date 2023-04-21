@@ -193,24 +193,11 @@ class cc:
     def __call__(self, image):
         return self.transform(image)
 
-# -- random gaussian noise
-class rgn:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            RandomApply([AddGaussianNoise()],p=0.5)
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
 # -- random colorjitter
-class rgn:
+class rcj:
     def __init__(self, resize, mean, std, **args):
         self.transform = Compose([
-            RandomApply([ColorJitter(0.1,0.1,0.1,0.1)],p=0.5)
+            RandomApply([ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)],p=0.5),
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std)
@@ -448,8 +435,8 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     id, gender, race, age = profile.split("_")
                     
                     # -- age 57, 58, 59 removal
-                    # if 57<=int(age)<=59:
-                    #     continue
+                    if 57<=int(age)<=59:
+                        continue
                     
                     # -- age 28, 29, 30, 31 removal
                     # if 28<=int(age)<=31:

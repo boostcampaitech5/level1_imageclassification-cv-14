@@ -1,14 +1,15 @@
 #!/bin/bash
 
 # -- Define values for the loop
-models=("EfficientnetB4")
+models=("EfficientnetB0")
 learning_rates=(0.0001)
-batch_sizes=(32)
-epochs=30
+batch_sizes=(64)
+epochs=25
 # augmentation="CustomAugmentation"
 # -- send augmentation type as argument to file name
 # "centercrop" "randomerasing" "randomhorizontalflip" "colorjitter" "randomrotation" "gaussiannoise"
-augmentation=("CustomAugmentation")
+# augmentation=("CustomAugmentation")
+augmentation=("BaseAugmentation")
 dataset="MaskSplitByProfileDataset"
 valid_batch_size=256
 # criterion="focal"
@@ -20,7 +21,7 @@ lr_decay_step=5
 # weight_decay=(0.0001 0.001)
 # -- for hyperparameter loop
 # lr_decay_step=(5 3)
-augmentation_types="[lastlastlastlast]"
+augmentation_types=""
 
 
 # -- Loop over combination of values -- with augmentation loop

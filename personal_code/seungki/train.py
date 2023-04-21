@@ -99,7 +99,7 @@ def train(data_dir, model_dir, args):
 
     seed_everything(args.seed)
 
-    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}_{args.augmentation_types}"))
+    save_dir = increment_path(os.path.join(model_dir, f"{args.model}_{args.epochs}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}"))
 
     # -- settings
     use_cuda = torch.cuda.is_available()
@@ -338,7 +338,7 @@ if __name__ == '__main__':
     
     #-- parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     parser.add_argument('--augmentation', type=str, default='CustomAugmentation', help='data augmentation type (default: CustomAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=int, default=[380, 380], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=int, default=[224, 224], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=256, help='input batch size for validing (default: 256)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
@@ -358,9 +358,12 @@ if __name__ == '__main__':
     
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
+    
+    # -- mixup train
+    # parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input_mixup/data/train/images'))
+    
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
 
-    
     args = parser.parse_args()
     
     if args.name is None:
@@ -392,10 +395,10 @@ if __name__ == '__main__':
     # wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.augmentation_types}'
     
     # 2. name with without augmentation types(or notes)
-    # wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}'
+    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}'
     
     # 3. name for hyperparameter
-    wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}_{args.scheduler}_{args.optimizer}_{args.weight_decay}_{args.lr_decay_step}'
+    # wandb_runname = f'{args.model}_{args.batch_size}_{args.lr}_{args.augmentation}_{args.criterion}_{args.scheduler}_{args.optimizer}_{args.weight_decay}_{args.lr_decay_step}'
     
 
     # project_name = "Image Classification Competition for Naver Boostcamp AI Tech"
@@ -403,8 +406,8 @@ if __name__ == '__main__':
 
     # project_name = "Augmentation comparison one by one"
     
-    project_name = "Final Models"
-    # project_name = "Augmentation without earlystopping"
+    # project_name = "Final Models"
+    project_name = "Augmentation without earlystopping"
     # project_name = "Test run 1"
     wandb.init(project=project_name,name=wandb_runname)
     
