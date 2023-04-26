@@ -17,6 +17,7 @@ import numpy as np
 import torch
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR, ReduceLROnPlateau
 from torch.utils.data import DataLoader
+from torchvision.utils import save_image
 from torchsampler import ImbalancedDatasetSampler
 
 from torch.utils.tensorboard import SummaryWriter
@@ -88,6 +89,28 @@ def increment_path(path, exist_ok=False):
         n = max(i) + 1 if i else 2
         return f"{path}{n}"
 
+def rand_bbox(size, lam):
+    W = size[2]
+    H = size[3]
+    # cut_rat = np.sqrt(1. - lam)
+    # cut_w = np.int(W * cut_rat)
+    # cut_h = np.int(H * cut_rat)
+    
+    bbx1 = np.clip(0,0,W)
+    bby1 = np.clip(H // 2,0,H)
+    bbx2 = np.clip(W,0,W)
+    bby2 = np.clip(H,0,H)
+
+    # uniform
+    # cx = np.random.randint(W)
+    # cy = np.random.randint(H)
+
+    # bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    # bby1 = np.clip(cy - cut_h // 2, 0, H)
+    # bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    # bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
 
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
@@ -107,7 +130,7 @@ def train(data_dir, model_dir, args):
     dataset = dataset_module(
         data_dir=data_dir,
     )
-    num_classes = dataset.num_classes  # 18
+    num_classes = dataset.num_classes   # 8
 
     # -- augmentation
     transform_module = getattr(import_module("dataset"), args.augmentation)  # default: BaseAugmentation
@@ -122,7 +145,8 @@ def train(data_dir, model_dir, args):
     
     # -- data_loader
     train_set, val_set = dataset.split_dataset()
-    
+
+    print('imbalanced sampler off')
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
@@ -131,16 +155,18 @@ def train(data_dir, model_dir, args):
         pin_memory=use_cuda,
         drop_last=True,
     )
-
-#     train_loader = DataLoader(              # 균형 샘플러 사용
-#         train_set,
-#         sampler=ImbalancedDatasetSampler(train_set),
-#         batch_size=args.batch_size,
-#         num_workers=multiprocessing.cpu_count() // 2,
-#         #shuffle=True,
-#         pin_memory=use_cuda,
-#         drop_last=True,
-#     )
+    
+    # print('imbalanced sampler on')
+    # train_loader = DataLoader(              # 균형 샘플러 사용
+    #     train_set,
+    #     sampler=ImbalancedDatasetSampler(train_set),
+    #     batch_size=args.batch_size,
+    #     num_workers=multiprocessing.cpu_count() // 2,
+    #     #shuffle=True,
+    #     pin_memory=use_cuda,
+    #     drop_last=True,
+    # )
+    
 
     val_loader = DataLoader(
         val_set,
@@ -162,6 +188,7 @@ def train(data_dir, model_dir, args):
 
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # default: cross_entropy
+
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
@@ -182,29 +209,86 @@ def train(data_dir, model_dir, args):
     best_val_loss = np.inf
 
     for epoch in tqdm(range(args.epochs)):
-        # train_labels = []
-        # train loop
         model.train()
         loss_value = 0
         matches = 0
         for idx, train_batch in enumerate(train_loader):
-            inputs, labels = train_batch
-            # train_labels.extend(labels.cpu().numpy())
+            inputs, mask, gender, age, labels  = train_batch
 
             inputs = inputs.to(device)
+            mask = mask.to(device)
+            gender = gender.to(device)
+            age = age.to(device)
             labels = labels.to(device)
+            
+            # # # cutmix 코드
+            # r = np.random.rand(1)
+
+            # beta = 0.5
+            # if beta > 0 and r < 0.5:
+            #     #lam = np.random.beta(beta, beta)
+            #     lam = 0.5 # 0.5 고정으로 수정
+            #     rand_index = torch.randperm(inputs.size()[0]).cuda()
+
+            #     age_a = age
+            #     age_b = age[rand_index]
+
+            #     mask_a = mask
+            #     mask_b = mask[rand_index]
+
+            #     gender_a = gender
+            #     gender_b = gender[rand_index]
+                
+            #     bbx1, bby1, bbx2, bby2 = rand_bbox(inputs.size(), lam)
+            #     inputs[:, :, bbx1:bbx2, bby1:bby2] = inputs[rand_index, :, bbx1:bbx2, bby1:bby2]
+
+            #     # adjust lambda to exactly match pixel ratio
+            #     lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (inputs.size()[-1] * inputs.size()[-2]))
+            #     # compute output
+            #     save_image(inputs[0], './test.jpg')
+                
+            #     mask_out, gender_out, age_out = model(inputs)
+
+            #     mask_loss = criterion(mask_out, mask_a) * lam + criterion(mask_out, mask_b) * (1. - lam)
+            #     gender_loss = criterion(gender_out, gender_a) * lam + criterion(gender_out, gender_b) * (1. - lam)
+            #     age_loss = criterion(age_out, age_a) * lam + criterion(age_out, age_b) * (1. - lam)
+
+            # else:
+            #     # compute output
+            #     mask_out, gender_out, age_out = model(inputs)
+
+            #     mask_loss = criterion(mask_out, mask)
+            #     gender_loss = criterion(gender_out, gender)
+            #     age_loss = criterion(age_out, age)
 
             optimizer.zero_grad()
+            
+            mask_out, gender_out, age_out = model(inputs)
 
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
+            mask_loss = criterion(mask_out, mask)
+            gender_loss = criterion(gender_out, gender)
+            age_loss = criterion(age_out, age)
+
+            # outs = model(inputs)
+            # loss = criterion(outs, labels)
+            # preds = torch.argmax(outs, dim=-1)
+
+            loss = mask_loss + gender_loss + age_loss
+
+            mask_out = mask_out.argmax(dim=-1)
+            gender_out = gender_out.argmax(dim=-1)
+            age_out = age_out.argmax(dim=-1)
+
+            preds = mask_out * 6 + gender_out * 3 + age_out
+
+            #preds = torch.argmax(output, dim=-1)
 
             loss.backward()
             optimizer.step()
 
             loss_value += loss.item()
             matches += (preds == labels).sum().item()
+
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
@@ -219,8 +303,6 @@ def train(data_dir, model_dir, args):
                 loss_value = 0
                 matches = 0
             
-        # print(Counter(train_labels))
-        # print('len', len(train_labels))
 
         #scheduler.step()
         
@@ -236,14 +318,30 @@ def train(data_dir, model_dir, args):
 
             figure = None
             for val_batch in val_loader:
-                inputs, labels = val_batch
+                inputs, mask, gender, age, labels  = val_batch
+
                 inputs = inputs.to(device)
+                mask = mask.to(device)
+                gender = gender.to(device)
+                age = age.to(device)
                 labels = labels.to(device)
 
-                outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
+                mask_out, gender_out, age_out = model(inputs)
 
-                loss_item = criterion(outs, labels).item()
+                mask_loss = criterion(mask_out, mask)
+                gender_loss = criterion(gender_out, gender)
+                age_loss = criterion(age_out, age)
+                
+                loss = mask_loss + gender_loss + age_loss
+
+                mask_out = mask_out.argmax(dim=-1)
+                gender_out = gender_out.argmax(dim=-1)
+                age_out = age_out.argmax(dim=-1)
+
+                preds = mask_out * 6 + gender_out * 3 + age_out
+                #preds = torch.argmax(outs, dim=-1)
+
+                loss_item = loss.item()
                 acc_item = (labels == preds).sum().item()
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)

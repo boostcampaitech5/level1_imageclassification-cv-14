@@ -1,7 +1,10 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import timm
+import torch
+import os
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -32,8 +35,6 @@ class BaseModel(nn.Module):
         x = self.avgpool(x)
         x = x.view(-1, 128)
         return self.fc(x)
-
-
 # Custom Model Template
 class MyModel(nn.Module):
     def __init__(self, num_classes):
@@ -52,40 +53,21 @@ class MyModel(nn.Module):
         """
         return x
 
-
 class CustomModel(nn.Module):
     def __init__(self, num_classes = 18):
         super().__init__()
         self.resnet = torchvision.models.resnet50(pretrained = True)
         self.resnet.fc = nn.Linear(2048 , num_classes)
 
-        # for name, param in self.resnet.named_parameters():
-        #     if 'fc' in name :
-        #         pass
-        #     else :
-        #         param.requires_grad = False
-
     def forward(self, x):
         x = self.resnet(x)
         return x
     
-
 class EfficientnetB4(nn.Module):
     def __init__(self, num_classes = 18):
         super().__init__()
         self.num_classes = num_classes
         self.backbone = timm.create_model('efficientnet_b4', num_classes = self.num_classes, pretrained = True)
-
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-
-        # for name, param in self.resnet.named_parameters():
-        #     if 'fc' in name :
-        #         pass
-        #     else :
-        #         param.requires_grad = False
 
     def forward(self, x):
         x = self.backbone(x)
@@ -97,61 +79,100 @@ class EfficientnetB0(nn.Module):
         self.num_classes = num_classes
         self.backbone = timm.create_model('efficientnet_b0', num_classes = self.num_classes, pretrained = True)
 
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-
-        # for name, param in self.resnet.named_parameters():
-        #     if 'fc' in name :
-        #         pass
-        #     else :
-        #         param.requires_grad = False
-
     def forward(self, x):
         x = self.backbone(x)
         return x
-    
 
+class EfficientnetB43way(nn.Module):
+    def __init__(self, num_classes = 18):
+        super(EfficientnetB43way, self).__init__()
+        model = timm.create_model('efficientnet_b4', pretrained=True)
+        self.model = nn.Sequential(*list(model.children())[:-1])
 
-class Densenet201(nn.Module):
-    def __init__(self):
-        super(Densenet201, self).__init__()
-        self.model = torchvision.models.densenet201(pretrained = True).features
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.mask = nn.Linear(1920, out_features=3)
-        self.age = nn.Linear(1920, out_features=3)
-        self.gender = nn.Linear(1920, out_features=2)
+        self.mask = nn.Sequential(
+            nn.Linear(1792, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(512, 3),
+        )
 
+        self.age = nn.Sequential(
+            nn.Linear(1792, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(512, 3),
+        ) 
+
+        self.gender = nn.Sequential(
+            nn.Linear(1792, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(512, 2),
+        )  
 
     def forward(self, x):
         x = self.model(x)
-        x = self.avgpool(x).view(x.size()[0], -1)
-
+        
         mask = self.mask(x)
         age = self.age(x)
         gender = self.gender(x)
 
-        return mask, age, gender
+        return mask, gender, age
 
+class EfficientnetB43wayF(nn.Module):
+    def __init__(self, num_classes = 18):
+        super().__init__()
+        self.num_classes = num_classes
+        self.backbone = EfficientnetB4()
 
+        best_model_path = ''
+        self.backbone.load_state_dict(torch.load(best_model_path))
+        
+        for name, param in self.backbone.backbone.named_parameters():
+            param.requires_grad = False
 
+        self.backbone.backbone.classifier = nn.Linear(1792, 512)
+
+        self.mask = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(256, 3),
+        )
+
+        self.age = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(256, 3),
+        ) 
+
+        self.gender = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(256, 2),
+        )  
+
+    def forward(self, x):
+        x = self.backbone(x)
+        mask = self.mask(x)
+        age = self.age(x)
+        gender = self.gender(x)
+
+        return mask, gender, age
+    
 class ConvnextSmall(nn.Module):
     def __init__(self, num_classes = 18):
         super().__init__()
         self.num_classes = num_classes
         self.backbone = timm.create_model('convnext_small', num_classes = self.num_classes, pretrained = True)
-
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-
-        # for name, param in self.resnet.named_parameters():
-        #     if 'fc' in name :
-        #         pass
-        #     else :
-        #         param.requires_grad = False
 
     def forward(self, x):
         x = self.backbone(x)
@@ -162,17 +183,6 @@ class ConvnextTiny(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         self.backbone = timm.create_model('convnext_tiny', num_classes = self.num_classes, pretrained = True)
-
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-        # for param, weight in self.backbone.named_parameters():
-        #     print(f"파라미터 {param:20} 가 gradient 를 tracking 하나요? -> {weight.requires_grad}")
-
-        # for name, param in self.resnet.named_parameters():
-        #     if 'fc' in name :
-        #         pass
-        #     else :
-        #         param.requires_grad = False
 
     def forward(self, x):
         x = self.backbone(x)

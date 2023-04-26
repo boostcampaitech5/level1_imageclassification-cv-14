@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from dataset import MaskBaseDataset, TestDataset, TTADataset
+from dataset import TestDataset, MaskBaseDataset
 
 
 def load_model(saved_model, num_classes, device):
@@ -15,10 +15,6 @@ def load_model(saved_model, num_classes, device):
     model = model_cls(
         num_classes=num_classes
     )
-
-    # tarpath = os.path.join(saved_model, 'best.tar.gz')
-    # tar = tarfile.open(tarpath, 'r:gz')
-    # tar.extractall(path=saved_model)
 
     model_path = os.path.join(saved_model, 'best.pth')
     model.load_state_dict(torch.load(model_path, map_location=device))
@@ -38,22 +34,15 @@ def inference(data_dir, model_dir, output_dir, args):
     model.eval()
 
     img_root = os.path.join(data_dir, args.preprocessing_type)
-    #img_root = os.path.join(data_dir, 'rembg_images')
-    #img_root = os.path.join(data_dir, 'rm_deepface_images')
     info_path = os.path.join(data_dir, 'info.csv')
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-
-    # -- dataset
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: TestDataset, or choose TTADataset (Apply TestTimeAugmentation)
     dataset = dataset_module(
         img_paths = img_paths,
         resize = args.resize
     )
-    #dataset = TestDataset(img_paths, args.resize)
-    #dataset = TTADataset(img_paths, args.resize)
-
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -68,12 +57,18 @@ def inference(data_dir, model_dir, output_dir, args):
     with torch.no_grad():
         for idx, images in enumerate(loader):
             images = images.to(device)
-            pred = model(images)
-            pred = pred.argmax(dim=-1)
+            mask_out, gender_out, age_out = model(images)
+
+            mask_out = mask_out.argmax(dim=-1)
+            gender_out = gender_out.argmax(dim=-1)
+            age_out = age_out.argmax(dim=-1)
+
+            pred = mask_out * 6 + gender_out * 3 + age_out
+
             preds.extend(pred.cpu().numpy())
 
     info['ans'] = preds
-    save_path = os.path.join(output_dir, f'output.csv')
+    save_path = os.path.join(output_dir, f'{args.model}.csv')
     info.to_csv(save_path, index=False)
     print(f"Inference Done! Inference result saved at {save_path}")
 
@@ -84,7 +79,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=256, help='input batch size for validing (default: 256)')
     parser.add_argument('--resize', type=int, default=[380, 380], help='resize size for image when you trained (default: [380, 380])')
-    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
+    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel))')
     parser.add_argument('--dataset', type=str, default='TestDataset', help='Test dataset augmentation type (default: TestDataset)')
     parser.add_argument('--preprocessing_type', type=str, default='images', help='Select image preprocessing type (default: images)')
 
