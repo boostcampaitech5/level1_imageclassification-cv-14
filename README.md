@@ -67,19 +67,20 @@
 > ### 최종결과
 <img src="./Image/private.png" width="800"/>
                 
-`Model weight (.pth) Link :`
+<a href = 'https://bottlenose-oak-2e3.notion.site/Model-weights-result-0d6e3ad6401348a58f39edc857abc6b3'>`📀Model weight (.pth) DownLoad Link`</a>
 <br/><br/><br/>
 
 > ### 모델 학습 일지 
-`notion` :   
-`랩업 리포트` :   
-`랩업 리포트 PPT` :   
+<a href='https://bottlenose-oak-2e3.notion.site/wrap-up-report-c37b3c035f82462480954c78dabbdc5c'> `Notion 🔥`</a>  
+<a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report.pdf'> `랩업 리포트 ✅`</a>  
+<a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report_ppt.pdf'>`랩업 리포트 PPT`⭐`</a>
 <br/><br/>
                 
 > ### ⭐File Tree
 ---
 ```bash
-
+  ├─Image
+  ├─Report : 랩업 리포트
   ├─main : main code
   ├─EDA.ipynb : EDA 
   ├─README.md
