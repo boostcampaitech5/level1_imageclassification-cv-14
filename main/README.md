@@ -79,9 +79,6 @@ and
 - A + B + C : Hard voting
 ```
 
-**Public Score**
-![public](../Image/public.png)
-
-**Private Score**
+**Final Score**
 ![private](../Image/private.png)
 
