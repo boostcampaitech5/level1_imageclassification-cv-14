@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from dataset import MaskBaseDataset, TestDataset, TTADataset
+from dataset import TestDataset, MaskBaseDataset
 
 
 def load_model(saved_model, num_classes, device):
@@ -37,23 +37,12 @@ def inference(data_dir, model_dir, output_dir, args):
     model = load_model(model_dir, num_classes, device).to(device)
     model.eval()
 
-    img_root = os.path.join(data_dir, args.preprocessing_type)
-    #img_root = os.path.join(data_dir, 'rembg_images')
-    #img_root = os.path.join(data_dir, 'rm_deepface_images')
+    img_root = os.path.join(data_dir, 'images')
     info_path = os.path.join(data_dir, 'info.csv')
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-
-    # -- dataset
-    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: TestDataset, or choose TTADataset (Apply TestTimeAugmentation)
-    dataset = dataset_module(
-        img_paths = img_paths,
-        resize = args.resize
-    )
-    #dataset = TestDataset(img_paths, args.resize)
-    #dataset = TTADataset(img_paths, args.resize)
-
+    dataset = TestDataset(img_paths, args.resize)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -83,10 +72,8 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=256, help='input batch size for validing (default: 256)')
-    parser.add_argument('--resize', type=int, default=[380, 380], help='resize size for image when you trained (default: [380, 380])')
-    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
-    parser.add_argument('--dataset', type=str, default='TestDataset', help='Test dataset augmentation type (default: TestDataset)')
-    parser.add_argument('--preprocessing_type', type=str, default='images', help='Select image preprocessing type (default: images)')
+    parser.add_argument('--resize', type=int, default=[224,224], help='resize size for image when you trained (default: [224,224])')
+    parser.add_argument('--model', type=str, default='EfficientB4', help='model type (default: EfficientB4)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))
