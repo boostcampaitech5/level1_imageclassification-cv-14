@@ -62,6 +62,8 @@
 |전형우|EDA, Augmentation, Modeling|
 |정호찬|EDA, 데이터 전 처리, Modeling |
 
+<img src="./Image/play.png" width="800"/>
+
 <br/>
 
 > ### 최종결과
@@ -75,7 +77,12 @@
 <a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report.pdf'>`랩업 리포트 ✅`</a>  
 <a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report_ppt.pdf'>`랩업 리포트 PPT⭐`</a>
 <br/><br/>
-                
+
+> ### 🐋Model
+---
+<img src='./Image/model.png/' width="800"/>
+<br/><br/>
+
 > ### ⭐File Tree
 ---
 ```bash
