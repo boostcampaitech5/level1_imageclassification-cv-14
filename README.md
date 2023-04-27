@@ -1,10 +1,11 @@
 # 🦆팀소개 - CV14 SCV팀
 
-![scv](./Image/scv.gif)  
+![scv](./Image/scv.gif)
+<br/>
 **`S급 CV 멤버가 5명이 모인 팀 SCV`**  
 
 
-### 🏃‍♂️멤버
+> ### 🏃‍♂️멤버
 <table>
     <tr height="160px">
         <td align="center" width="150px">
@@ -44,15 +45,15 @@
                 
 # 😷level- 1 대회 :마스크 착용 상태 분류대회
 
-### 대회개요
+> ### 대회개요
 `COVID-19의 확산으로 우리나라는 물론 전 세계 사람들은 경제적, 생산적인 활동에 많은 제약을 가지게 되었습니다. 감염자의 입, 호흡기로부터 나오는 비말, 침 등으로 전파가 되기 때문에 마스크를 착용하는 건 COIVD-19의 확산을 방지하는데 중요한 역할을 합니다. 마스크 착용 여부의 검사를 도와주기 위해 카메라로 비춰진 사람의 얼굴 이미지만으로 마스크를 쓰고 있는지, 쓰지 않았는지, 정확히 쓴 것이 맞는지 자동으로 가려낼 수 있는 모델을 제작하는 것이 프로젝트의 목적입니다`
-
-### 팀 목표
+<br/><br/><br/>
+> ### 팀 목표
                 
 **`1. Leader Board 성능 보다는 Robust한 모델을 위한 설계를 해보자`**  
 **`2. 우리가 직접 구현해보고 실험할 수 있는 것들에 시간을 투자하자`**
-
-### 🏃‍♂️팀 역할
+<br/><br/><br/>
+> ### 🏃‍♂️팀 역할
 |팀원|역할|
 |------|---|
 |김승기|EDA, Hyper Parameter, Augmentation|
@@ -61,15 +62,21 @@
 |전형우|EDA, Augmentation, Modeling|
 |정호찬|EDA, 데이터 전 처리, Modeling |
 
-### 최종결과
-<img src="./Image/private.png" width="800"/>
+<br/><br/>
 
-### 모델 학습 일지 
+> ### 최종결과
+<img src="./Image/private.png" width="800"/>
+                
+`Model weight (.pth) Link :`
+<br/><br/>
+
+> ### 모델 학습 일지 
 `notion` :   
 `랩업 리포트` :   
 `랩업 리포트 PPT` :   
-                 
-### ⭐File Tree
+<br/><br/><br/>
+                
+> ### ⭐File Tree
 ---
 ```bash
 
@@ -78,8 +85,9 @@
   ├─README.md
 
 ``` 
-
-### 🔥필수 라이브러리 설치
+<br/><br/>
+                
+> ### 🔥필수 라이브러리 설치
 ---
 ``` bash
 pip install -r requirements.txt
