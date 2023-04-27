@@ -62,19 +62,19 @@
 |전형우|EDA, Augmentation, Modeling|
 |정호찬|EDA, 데이터 전 처리, Modeling |
 
-<br/><br/>
+<br/>
 
 > ### 최종결과
 <img src="./Image/private.png" width="800"/>
                 
 `Model weight (.pth) Link :`
-<br/><br/>
+<br/><br/><br/>
 
 > ### 모델 학습 일지 
 `notion` :   
 `랩업 리포트` :   
 `랩업 리포트 PPT` :   
-<br/><br/><br/>
+<br/><br/>
                 
 > ### ⭐File Tree
 ---
