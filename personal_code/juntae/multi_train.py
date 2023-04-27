@@ -122,21 +122,38 @@ def rand_bbox(size, lam):
     return bbx1, bby1, bbx2, bby2
 
 
-def cutmix(labels, inputs, model, criterion):
+def multi_label_cutmix(age, mask, gender, inputs, model, criterion):
     # lam = np.random.beta(beta, beta)
     lam = 0.5  # 0.5 고정으로 수정
     rand_index = torch.randperm(inputs.size()[0]).cuda()
-    target_a = labels
-    target_b = labels[rand_index]
+
+    age_a = age
+    age_b = age[rand_index]
+
+    mask_a = mask
+    mask_b = mask[rand_index]
+
+    gender_a = gender
+    gender_b = gender[rand_index]
+
     bbx1, bby1, bbx2, bby2 = rand_bbox(inputs.size(), lam)
     inputs[:, :, bbx1:bbx2, bby1:bby2] = inputs[rand_index, :, bbx1:bbx2, bby1:bby2]
+
     # adjust lambda to exactly match pixel ratio
     lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (inputs.size()[-1] * inputs.size()[-2]))
+    # compute output
 
-    output = model(inputs)
-    loss = criterion(output, target_a) * lam + criterion(output, target_b) * (1.0 - lam)
+    mask_out, gender_out, age_out = model(inputs)
 
-    return output, loss
+    mask_loss = criterion(mask_out, mask_a) * lam + criterion(mask_out, mask_b) * (
+        1.0 - lam
+    )
+    gender_loss = criterion(gender_out, gender_a) * lam + criterion(
+        gender_out, gender_b
+    ) * (1.0 - lam)
+    age_loss = criterion(age_out, age_a) * lam + criterion(age_out, age_b) * (1.0 - lam)
+
+    return mask_out, gender_out, age_out, mask_loss, gender_loss, age_loss
 
 
 def train(data_dir, model_dir, args):
@@ -164,7 +181,7 @@ def train(data_dir, model_dir, args):
         exec_remove_fake=args.exec_remove_fake,
         remove_fake_mode=args.remove_fake_mode,
     )
-    num_classes = dataset.num_classes  # 18
+    num_classes = dataset.num_classes  # 8
 
     # -- augmentation
     transform_module = getattr(
@@ -205,7 +222,7 @@ def train(data_dir, model_dir, args):
         val_set,
         batch_size=args.valid_batch_size,
         num_workers=multiprocessing.cpu_count() // 2,
-        shuffle=True,
+        shuffle=True,  # 변경
         pin_memory=use_cuda,
         drop_last=True,
     )
@@ -217,6 +234,7 @@ def train(data_dir, model_dir, args):
 
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # default: cross_entropy
+
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
         filter(lambda p: p.requires_grad, model.parameters()),
@@ -241,27 +259,49 @@ def train(data_dir, model_dir, args):
         loss_value = 0
         matches = 0
         for idx, train_batch in enumerate(train_loader):
-            inputs, labels = train_batch
+            inputs, mask, gender, age, labels = train_batch
 
             inputs = inputs.to(device)
+            mask = mask.to(device)
+            gender = gender.to(device)
+            age = age.to(device)
             labels = labels.to(device)
 
             r = np.random.rand(1)
 
             if args.use_cutmix == True and r < 0.5:  # cutmix 실행
-                outs, loss = cutmix(labels, inputs, model, criterion)
+                (
+                    mask_out,
+                    gender_out,
+                    age_out,
+                    mask_loss,
+                    gender_loss,
+                    age_loss,
+                ) = multi_label_cutmix(age, mask, gender, inputs, model, criterion)
+
             else:
-                outs = model(inputs)
-                loss = criterion(outs, labels)
+                mask_out, gender_out, age_out = model(inputs)
+
+                mask_loss = criterion(mask_out, mask)
+                gender_loss = criterion(gender_out, gender)
+                age_loss = criterion(age_out, age)
 
             optimizer.zero_grad()
-            preds = torch.argmax(outs, dim=-1)
+
+            loss = mask_loss + gender_loss + age_loss
+
+            mask_out = mask_out.argmax(dim=-1)
+            gender_out = gender_out.argmax(dim=-1)
+            age_out = age_out.argmax(dim=-1)
+
+            preds = mask_out * 6 + gender_out * 3 + age_out
 
             loss.backward()
             optimizer.step()
 
             loss_value += loss.item()
             matches += (preds == labels).sum().item()
+
             if (idx + 1) % args.log_interval == 0:
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
@@ -294,14 +334,30 @@ def train(data_dir, model_dir, args):
 
             figure = None
             for val_batch in val_loader:
-                inputs, labels = val_batch
+                inputs, mask, gender, age, labels = val_batch
+
                 inputs = inputs.to(device)
+                mask = mask.to(device)
+                gender = gender.to(device)
+                age = age.to(device)
                 labels = labels.to(device)
 
-                outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
+                mask_out, gender_out, age_out = model(inputs)
 
-                loss_item = criterion(outs, labels).item()
+                mask_loss = criterion(mask_out, mask)
+                gender_loss = criterion(gender_out, gender)
+                age_loss = criterion(age_out, age)
+
+                loss = mask_loss + gender_loss + age_loss
+
+                mask_out = mask_out.argmax(dim=-1)
+                gender_out = gender_out.argmax(dim=-1)
+                age_out = age_out.argmax(dim=-1)
+
+                preds = mask_out * 6 + gender_out * 3 + age_out
+                # preds = torch.argmax(outs, dim=-1)
+
+                loss_item = loss.item()
                 acc_item = (labels == preds).sum().item()
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
@@ -327,7 +383,6 @@ def train(data_dir, model_dir, args):
             val_f1_score = metrics.f1_score(
                 y_true=val_labels, y_pred=val_preds, average="macro"
             )  # f1_score
-            # print('f1_score :', val_f1_score)
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
@@ -355,7 +410,7 @@ def train(data_dir, model_dir, args):
                     "Train loss": train_loss,
                     "Train accuracy": train_acc,
                     "Val loss": val_loss,
-                    "Val accuracy": val_acc,
+                    "Val acc": val_acc,
                     "Val F1_Score": val_f1_score,
                 }
             )
@@ -376,7 +431,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="MaskSplitByProfileDataset",
+        default="MultiLabelMaskSplitByProfileDataset",
         help="dataset augmentation type (default: MaskBaseDataset)",
     )
     parser.add_argument(

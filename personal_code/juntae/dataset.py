@@ -6,98 +6,74 @@ from typing import Tuple, List
 
 import pandas as pd
 import numpy as np
-import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import Resize, ToTensor, Normalize, Compose, CenterCrop, ColorJitter, RandomHorizontalFlip, RandomErasing
-from rembg import remove
+from torchvision.transforms import (
+    Resize,
+    ToTensor,
+    Normalize,
+    Compose,
+    CenterCrop,
+    ColorJitter,
+    RandomHorizontalFlip,
+    RandomErasing,
+    GaussianBlur,
+)
 from collections import Counter
-from torchvision.utils import save_image
 from sklearn.model_selection import train_test_split
+
 IMG_EXTENSIONS = [
-    ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
-    ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
+    ".jpg",
+    ".JPG",
+    ".jpeg",
+    ".JPEG",
+    ".png",
+    ".PNG",
+    ".ppm",
+    ".PPM",
+    ".bmp",
+    ".BMP",
 ]
 
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
-
-class BaseAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-
-class AddGaussianNoise(object):
-    """
-        transform 에 없는 기능들은 이런식으로 __init__, __call__, __repr__ 부분을
-        직접 구현하여 사용할 수 있습니다.
-    """
-
-    def __init__(self, mean=0., std=1.):
-        self.std = std
-        self.mean = mean
-
-    def __call__(self, tensor):
-        return tensor + torch.randn(tensor.size()) * self.std + self.mean
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
-
-
-class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            AddGaussianNoise()
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-class CenterCropAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            Resize(resize, Image.BILINEAR),
-            RandomHorizontalFlip(p=0.5),
-            #ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            #AddGaussianNoise()
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
 class BestAugmentation:
     def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            Resize(resize, Image.BILINEAR),
-            RandomHorizontalFlip(p=0.5),
-            #ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            RandomErasing(p=0.5),
-            #AddGaussianNoise()
-        ])
+        self.transform = Compose(
+            [
+                CenterCrop((380, 380)),
+                Resize(resize, Image.BILINEAR),
+                RandomHorizontalFlip(p=0.5),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+                RandomErasing(p=0.5),
+            ]
+        )
 
     def __call__(self, image):
         return self.transform(image)
-    
+
+
+class OldAugmentation:
+    def __init__(self, mean, std, **args):
+        self.transform = Compose(
+            [
+                CenterCrop((380, 380)),
+                Resize(380, Image.BILINEAR),
+                RandomHorizontalFlip(p=0.5),
+                ColorJitter(0.01, 0.01, 0.01, 0.01),
+                GaussianBlur(kernel_size=(3, 3)),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+            ]
+        )
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
 class MaskLabels(int, Enum):
     MASK = 0
     INCORRECT = 1
@@ -116,7 +92,10 @@ class GenderLabels(int, Enum):
         elif value == "female":
             return cls.FEMALE
         else:
-            raise ValueError(f"Gender value should be either 'male' or 'female', {value}")
+
+            raise ValueError(
+                f"Gender value should be either 'male' or 'female', {value}"
+            )
 
 
 class AgeLabels(int, Enum):
@@ -149,7 +128,7 @@ class MaskBaseDataset(Dataset):
         "mask4": MaskLabels.MASK,
         "mask5": MaskLabels.MASK,
         "incorrect_mask": MaskLabels.INCORRECT,
-        "normal": MaskLabels.NORMAL
+        "normal": MaskLabels.NORMAL,
     }
 
     image_paths = []
@@ -157,13 +136,39 @@ class MaskBaseDataset(Dataset):
     gender_labels = []
     age_labels = []
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(
+        self,
+        data_dir,
+        mean=(0.548, 0.504, 0.479),
+        std=(0.237, 0.247, 0.246),
+        val_ratio=0.2,
+        old_agumentation=False,
+        balanced_split=True,
+        exec_age_drop=True,
+        age_drop_mode=["train", "val"],
+        drop_age=["57", "58", "59"],
+        exec_remove_fake=True,
+        remove_fake_mode=["train", "val"],
+    ):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
 
         self.transform = None
+
+        self.old_agumentation = old_agumentation
+        self.old_transform = OldAugmentation(self.mean, self.std)
+
+        self.balanced_split = balanced_split
+
+        self.exec_age_drop = exec_age_drop
+        self.age_drop_mode = age_drop_mode
+        self.drop_age = drop_age
+
+        self.exec_remove_fake = exec_remove_fake
+        self.remove_fake_mode = remove_fake_mode
+
         self.setup()
         self.calc_statistics()
 
@@ -176,10 +181,15 @@ class MaskBaseDataset(Dataset):
             img_folder = os.path.join(self.data_dir, profile)
             for file_name in os.listdir(img_folder):
                 _file_name, ext = os.path.splitext(file_name)
-                if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+
+                if (
+                    _file_name not in self._file_names
+                ):  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                     continue
 
-                img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                img_path = os.path.join(
+                    self.data_dir, profile, file_name
+                )  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                 mask_label = self._file_names[_file_name]
 
                 id, gender, race, age = profile.split("_")
@@ -194,16 +204,18 @@ class MaskBaseDataset(Dataset):
     def calc_statistics(self):
         has_statistics = self.mean is not None and self.std is not None
         if not has_statistics:
-            print("[Warning] Calculating statistics... It can take a long time depending on your CPU machine")
+            print(
+                "[Warning] Calculating statistics... It can take a long time depending on your CPU machine"
+            )
             sums = []
             squared = []
             for image_path in self.image_paths[:3000]:
                 image = np.array(Image.open(image_path)).astype(np.int32)
                 sums.append(image.mean(axis=(0, 1)))
-                squared.append((image ** 2).mean(axis=(0, 1)))
+                squared.append((image**2).mean(axis=(0, 1)))
 
             self.mean = np.mean(sums, axis=0) / 255
-            self.std = (np.mean(squared, axis=0) - self.mean ** 2) ** 0.5 / 255
+            self.std = (np.mean(squared, axis=0) - self.mean**2) ** 0.5 / 255
 
     def set_transform(self, transform):
         self.transform = transform
@@ -216,11 +228,12 @@ class MaskBaseDataset(Dataset):
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
         multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
-        
-        #print(type(image))
-        image_transform = self.transform(image)
-        #save_image(image_transform, './test.jpg')
-        #print(type(image_transform))
+
+        if self.old_agumentation == True and age_label == 2:
+            image_transform = self.old_transform(image)
+        else:
+            image_transform = self.transform(image)
+
         return image_transform, multi_class_label
 
     def __len__(self):
@@ -238,22 +251,16 @@ class MaskBaseDataset(Dataset):
     def read_image(self, index):
         image_path = self.image_paths[index]
         return Image.open(image_path)
-    
-    # def read_image(self, index):
-    #     image_path = self.image_paths[index]
-    #     img = Image.open(image_path)
-    #     img = np.array(img)
-    #     remove_img = remove(img)
-    #     remove_img = remove_img[:,:,:3]
-    #     remove_pil_img = Image.fromarray(remove_img)
-    #     return remove_pil_img
 
     @staticmethod
     def encode_multi_class(mask_label, gender_label, age_label) -> int:
         return mask_label * 6 + gender_label * 3 + age_label
 
     @staticmethod
-    def decode_multi_class(multi_class_label) -> Tuple[MaskLabels, GenderLabels, AgeLabels]:
+
+    def decode_multi_class(
+        multi_class_label,
+    ) -> Tuple[MaskLabels, GenderLabels, AgeLabels]:
         mask_label = (multi_class_label // 6) % 3
         gender_label = (multi_class_label // 3) % 2
         age_label = multi_class_label % 3
@@ -280,8 +287,9 @@ class MaskBaseDataset(Dataset):
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
 
+
 class MultiLabelMaskBaseDataset(Dataset):
-    num_classes = 3 + 2 + 3
+    num_classes = 3 * 2 * 3
 
     _file_names = {
         "mask1": MaskLabels.MASK,
@@ -290,7 +298,7 @@ class MultiLabelMaskBaseDataset(Dataset):
         "mask4": MaskLabels.MASK,
         "mask5": MaskLabels.MASK,
         "incorrect_mask": MaskLabels.INCORRECT,
-        "normal": MaskLabels.NORMAL
+        "normal": MaskLabels.NORMAL,
     }
 
     image_paths = []
@@ -298,13 +306,40 @@ class MultiLabelMaskBaseDataset(Dataset):
     gender_labels = []
     age_labels = []
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+
+    def __init__(
+        self,
+        data_dir,
+        mean=(0.548, 0.504, 0.479),
+        std=(0.237, 0.247, 0.246),
+        val_ratio=0.2,
+        old_agumentation=False,
+        balanced_split=True,
+        exec_age_drop=True,
+        age_drop_mode=["train", "val"],
+        drop_age=["57", "58", "59"],
+        exec_remove_fake=True,
+        remove_fake_mode=["train", "val"],
+    ):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
 
         self.transform = None
+
+        self.old_agumentation = old_agumentation
+        self.old_transform = OldAugmentation(self.mean, self.std)
+
+        self.balanced_split = balanced_split
+
+        self.exec_age_drop = exec_age_drop
+        self.age_drop_mode = age_drop_mode
+        self.drop_age = drop_age
+
+        self.exec_remove_fake = exec_remove_fake
+        self.remove_fake_mode = remove_fake_mode
+
         self.setup()
         self.calc_statistics()
 
@@ -312,15 +347,21 @@ class MultiLabelMaskBaseDataset(Dataset):
         profiles = os.listdir(self.data_dir)
         for profile in profiles:
             if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
-                continue    
+
+                continue
 
             img_folder = os.path.join(self.data_dir, profile)
             for file_name in os.listdir(img_folder):
                 _file_name, ext = os.path.splitext(file_name)
-                if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+
+                if (
+                    _file_name not in self._file_names
+                ):  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                     continue
 
-                img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                img_path = os.path.join(
+                    self.data_dir, profile, file_name
+                )  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                 mask_label = self._file_names[_file_name]
 
                 id, gender, race, age = profile.split("_")
@@ -335,16 +376,18 @@ class MultiLabelMaskBaseDataset(Dataset):
     def calc_statistics(self):
         has_statistics = self.mean is not None and self.std is not None
         if not has_statistics:
-            print("[Warning] Calculating statistics... It can take a long time depending on your CPU machine")
+            print(
+                "[Warning] Calculating statistics... It can take a long time depending on your CPU machine"
+            )
             sums = []
             squared = []
             for image_path in self.image_paths[:3000]:
                 image = np.array(Image.open(image_path)).astype(np.int32)
                 sums.append(image.mean(axis=(0, 1)))
-                squared.append((image ** 2).mean(axis=(0, 1)))
+                squared.append((image**2).mean(axis=(0, 1)))
 
             self.mean = np.mean(sums, axis=0) / 255
-            self.std = (np.mean(squared, axis=0) - self.mean ** 2) ** 0.5 / 255
+            self.std = (np.mean(squared, axis=0) - self.mean**2) ** 0.5 / 255
 
     def set_transform(self, transform):
         self.transform = transform
@@ -356,10 +399,14 @@ class MultiLabelMaskBaseDataset(Dataset):
         mask_label = self.get_mask_label(index)
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
-        #multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
+        multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
 
-        image_transform = self.transform(image)
-        return image_transform, (mask_label, gender_label, age_label)
+        if self.old_agumentation == True and age_label == 2:
+            image_transform = self.old_transform(image)
+        else:
+            image_transform = self.transform(image)
+
+        return image_transform, mask_label, gender_label, age_label, multi_class_label
 
     def __len__(self):
         return len(self.image_paths)
@@ -382,7 +429,9 @@ class MultiLabelMaskBaseDataset(Dataset):
         return mask_label * 6 + gender_label * 3 + age_label
 
     @staticmethod
-    def decode_multi_class(multi_class_label) -> Tuple[MaskLabels, GenderLabels, AgeLabels]:
+    def decode_multi_class(
+        multi_class_label,
+    ) -> Tuple[MaskLabels, GenderLabels, AgeLabels]:
         mask_label = (multi_class_label // 6) % 3
         gender_label = (multi_class_label // 3) % 2
         age_label = multi_class_label % 3
@@ -408,23 +457,36 @@ class MultiLabelMaskBaseDataset(Dataset):
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
         return train_set, val_set
-    
+
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
     """
-        train / val 나누는 기준을 이미지에 대해서 random 이 아닌
-        사람(profile)을 기준으로 나눕니다.
-        구현은 val_ratio 에 맞게 train / val 나누는 것을 이미지 전체가 아닌 사람(profile)에 대해서 진행하여 indexing 을 합니다
-        이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
+    train / val 나누는 기준을 이미지에 대해서 random 이 아닌
+    사람(profile)을 기준으로 나눕니다.
+    구현은 val_ratio 에 맞게 train / val 나누는 것을 이미지 전체가 아닌 사람(profile)에 대해서 진행하여 indexing 을 합니다
+    이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
     """
-    
+
     total_labels = []
     train_labels = []
     val_labels = []
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(
+        self,
+        data_dir,
+        mean=(0.548, 0.504, 0.479),
+        std=(0.237, 0.247, 0.246),
+        val_ratio=0.2,
+        old_agumentation=False,
+        balanced_split=True,
+        exec_age_drop=True,
+        age_drop_mode=["train", "val"],
+        drop_age=["57", "58", "59"],
+        exec_remove_fake=True,
+        remove_fake_mode=["train", "val"],
+    ):
         self.indices = defaultdict(list)
-        super().__init__(data_dir, mean, std, val_ratio)
+        super().__init__(data_dir, mean, std, val_ratio, old_agumentation, balanced_split, exec_age_drop, age_drop_mode, drop_age, exec_remove_fake, remove_fake_mode)
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
@@ -433,33 +495,31 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
         val_indices = set(random.sample(range(length), k=n_val))
         train_indices = set(range(length)) - val_indices
-        return {
-            "train": train_indices,
-            "val": val_indices
-        }
-    
+        return {"train": train_indices, "val": val_indices}
+
     def balanced_split_profile(self, profiles, val_ratio):
+        print("balanced_split_profile..on")
         df = pd.DataFrame()
-        df['path'] = profiles
+        df["path"] = profiles
 
         gender = []
         age = []
-        for fname in df['path']:
-            info = fname.split('_')
+        for fname in df["path"]:
+            info = fname.split("_")
             age.append(int(info[3]))
             gender.append(info[1])
 
-        df['gender'] = gender
-        df['age'] = age
+        df["gender"] = gender
+        df["age"] = age
 
         new_label = []
         gender_list = []
         age_list = []
 
-        for g,a in zip(df['gender'],df['age']):
-            if g =='male':
+        for g, a in zip(df["gender"], df["age"]):
+            if g == "male":
                 gender_list.append(0)
-            elif g == 'female':
+            elif g == "female":
                 gender_list.append(1)
 
             if int(a) < 30:
@@ -470,77 +530,72 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                 age_list.append(2)
 
         for i in range(len(df)):
-            new_label.append(0 * 6 + gender_list[i] * 3 + age_list[i]) 
+            new_label.append(0 * 6 + gender_list[i] * 3 + age_list[i])
 
-        df['gender_age'] = new_label
-        #df = pd.read_csv('./balance_train.csv')
-        train, val = train_test_split(df, test_size=val_ratio, random_state=42, stratify=df['gender_age'])
+        df["gender_age"] = new_label
+        train, val = train_test_split(
+            df, test_size=val_ratio, random_state=42, stratify=df["gender_age"]
+        )
         train_indices = set(list(train.index))
         val_indices = set(list(val.index))
 
-        return {
-            "train": train_indices,
-            "val": val_indices
-        }
-    
-    def random_age_drop(self, split_profiles, profiles):  # 랜덤하게 나이 제거
-        removed_idx = []
+        return {"train": train_indices, "val": val_indices}
 
+    def age_drop(
+        self,
+        split_profiles,
+        profiles,
+        mode=["train", "val"],
+        age_list=["57", "58", "59"],
+    ):  # mode에서 특정 나이 제거
+        print("age_drop..")
         for phase, indices in split_profiles.items():
-            if phase == 'train':
+            removed_idx = []
+            if phase in mode:
                 for idx in indices:
-                    p = random.choice([0,1])
-                    if p == 1 and profiles[idx].split("_")[-1] in ['57','58','59']:
+                    if profiles[idx].split("_")[-1] in age_list:
                         removed_idx.append(idx)
-    
-        for ri in removed_idx:
-            split_profiles['train'].remove(ri)
+            for ri in removed_idx:
+                split_profiles[phase].remove(ri)
 
         return split_profiles
-    
-    def mode_age_drop(self, split_profiles, profiles, mode):   # train에서 경계 나이 제거
-        removed_idx = []
 
+    def remove_fake(
+        self,
+        split_profiles,
+        profiles,
+        mode=["train", "val"],
+    ):  # mode에서 mixup 데이터 제거
+        print("remove fake..")
         for phase, indices in split_profiles.items():
-            if phase == mode:
+            removed_idx = []
+            if phase in mode:
                 for idx in indices:
-                    if profiles[idx].split("_")[-1] in ['57','58','59']:
+                    if profiles[idx].split("_")[2] == "Fake":
                         removed_idx.append(idx)
-    
-        for ri in removed_idx:
-            split_profiles[mode].remove(ri)
-
-        return split_profiles
-    
-    def remove_fake(self, split_profiles, profiles, mode):   # fake 데이터 제거
-        removed_idx = []
-
-        for phase, indices in split_profiles.items():
-            if phase == mode:
-                for idx in indices:
-                    if profiles[idx].split("_")[2] == 'Fake':
-                        removed_idx.append(idx)
-    
-        for ri in removed_idx:
-            split_profiles[mode].remove(ri)
+            for ri in removed_idx:
+                split_profiles[phase].remove(ri)
 
         return split_profiles
 
     def setup(self):
         profiles = os.listdir(self.data_dir)
-        #profiles = [profile for profile in profiles if not profile.startswith(".")] # 경계값 제거 안함
-        profiles = [profile for profile in profiles if not profile.startswith(".") and profile.split("_")[-1] not in ['57','58','59']] # 경계값 제거 
+        profiles = [profile for profile in profiles if not profile.startswith(".")]
 
-        #split_profiles = self._split_profile(profiles, self.val_ratio) 
-        split_profiles = self.balanced_split_profile(profiles, self.val_ratio) # 밸런스 맞춰서 나누기
-        
-        #split_profiles = self.random_age_drop(split_profiles, profiles) # train에서 랜덤 경계값 제거
-        #split_profiles = self.train_age_drop(split_profiles, profiles, 'train') # train에서 경계값 제거
-        
-        # fake_list = []
-        # for pro in profiles:
-        #     if pro.split("_")[2] == 'Fake':
-        #         fake_list.append
+        if self.balanced_split == True:
+            split_profiles = self.balanced_split_profile(profiles, self.val_ratio)
+        else:
+            split_profiles = self._split_profile(profiles, self.val_ratio)
+
+        if self.exec_remove_fake:
+            split_profiles = self.remove_fake(
+                split_profiles, profiles, self.remove_fake_mode
+            )
+
+        if self.exec_age_drop:
+            split_profiles = self.age_drop(
+                split_profiles, profiles, self.age_drop_mode, self.drop_age
+            )
 
         cnt = 0
         for phase, indices in split_profiles.items():
@@ -549,10 +604,14 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                 img_folder = os.path.join(self.data_dir, profile)
                 for file_name in os.listdir(img_folder):
                     _file_name, ext = os.path.splitext(file_name)
-                    if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+                    if (
+                        _file_name not in self._file_names
+                    ):  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                         continue
 
-                    img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                    img_path = os.path.join(
+                        self.data_dir, profile, file_name
+                    )  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                     mask_label = self._file_names[_file_name]
 
                     id, gender, race, age = profile.split("_")
@@ -563,42 +622,61 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     self.mask_labels.append(mask_label)
                     self.gender_labels.append(gender_label)
                     self.age_labels.append(age_label)
-                    self.total_labels.append(self.encode_multi_class(mask_label, gender_label, age_label))
-        
+                    self.total_labels.append(
+                        self.encode_multi_class(mask_label, gender_label, age_label)
+                    )
+
                     self.indices[phase].append(cnt)
                     cnt += 1
-        
+
         for phase, indices in self.indices.items():
-            if phase == 'train':
-               for t in indices:
-                   self.train_labels.append(self.total_labels[t])
+            if phase == "train":
+                for t in indices:
+                    self.train_labels.append(self.total_labels[t])
             else:
                 for v in indices:
-                   self.val_labels.append(self.total_labels[v]) 
-        
-        ct = Counter(self.train_labels)
-        cv = Counter(self.val_labels)
-        print('train ratio',sorted(ct.items()))
-        print('val ratio',sorted(cv.items()))
-        print('train_labels len', len(self.train_labels))
-        print('val_labels len', len(self.val_labels))
-        print()
+                    self.val_labels.append(self.total_labels[v])
+
+        # ct = Counter(self.train_labels)
+        # cv = Counter(self.val_labels)
+        # print('train ratio',sorted(ct.items()))
+        # print('val ratio',sorted(cv.items()))
+        # print('train_labels len', len(self.train_labels))
+        # print('val_labels len', len(self.val_labels))
+        # print()
 
     def split_dataset(self) -> List[Subset]:
         return [Subset(self, indices) for phase, indices in self.indices.items()]
-    
+
 
 class MultiLabelMaskSplitByProfileDataset(MultiLabelMaskBaseDataset):
     """
-        train / val 나누는 기준을 이미지에 대해서 random 이 아닌
-        사람(profile)을 기준으로 나눕니다.
-        구현은 val_ratio 에 맞게 train / val 나누는 것을 이미지 전체가 아닌 사람(profile)에 대해서 진행하여 indexing 을 합니다
-        이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
+    train / val 나누는 기준을 이미지에 대해서 random 이 아닌
+    사람(profile)을 기준으로 나눕니다.
+    구현은 val_ratio 에 맞게 train / val 나누는 것을 이미지 전체가 아닌 사람(profile)에 대해서 진행하여 indexing 을 합니다
+    이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
     """
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    total_labels = []
+    train_labels = []
+    val_labels = []
+
+    def __init__(
+        self,
+        data_dir,
+        mean=(0.548, 0.504, 0.479),
+        std=(0.237, 0.247, 0.246),
+        val_ratio=0.2,
+        old_agumentation=False,
+        balanced_split=True,
+        exec_age_drop=True,
+        age_drop_mode=["train", "val"],
+        drop_age=["57", "58", "59"],
+        exec_remove_fake=True,
+        remove_fake_mode=["train", "val"],
+    ):
         self.indices = defaultdict(list)
-        super().__init__(data_dir, mean, std, val_ratio)
+        super().__init__(data_dir, mean, std, val_ratio, old_agumentation, balanced_split, exec_age_drop, age_drop_mode, drop_age, exec_remove_fake, remove_fake_mode)
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
@@ -607,15 +685,107 @@ class MultiLabelMaskSplitByProfileDataset(MultiLabelMaskBaseDataset):
 
         val_indices = set(random.sample(range(length), k=n_val))
         train_indices = set(range(length)) - val_indices
-        return {
-            "train": train_indices,
-            "val": val_indices
-        }
+        return {"train": train_indices, "val": val_indices}
+
+    def balanced_split_profile(self, profiles, val_ratio):
+        print("balanced_split_profile..on")
+        df = pd.DataFrame()
+        df["path"] = profiles
+
+        gender = []
+        age = []
+        for fname in df["path"]:
+            info = fname.split("_")
+            age.append(int(info[3]))
+            gender.append(info[1])
+
+        df["gender"] = gender
+        df["age"] = age
+
+        new_label = []
+        gender_list = []
+        age_list = []
+
+        for g, a in zip(df["gender"], df["age"]):
+            if g == "male":
+                gender_list.append(0)
+            elif g == "female":
+                gender_list.append(1)
+
+            if int(a) < 30:
+                age_list.append(0)
+            elif 30 <= int(a) < 60:
+                age_list.append(1)
+            else:
+                age_list.append(2)
+
+        for i in range(len(df)):
+            new_label.append(0 * 6 + gender_list[i] * 3 + age_list[i])
+
+        df["gender_age"] = new_label
+        train, val = train_test_split(
+            df, test_size=val_ratio, random_state=42, stratify=df["gender_age"]
+        )
+        train_indices = set(list(train.index))
+        val_indices = set(list(val.index))
+
+        return {"train": train_indices, "val": val_indices}
+
+    def age_drop(
+        self,
+        split_profiles,
+        profiles,
+        mode=["train", "val"],
+        age_list=["57", "58", "59"],
+    ):  # mode에서 특정 나이 제거
+        print("age_drop..")
+        for phase, indices in split_profiles.items():
+            removed_idx = []
+            if phase in mode:
+                for idx in indices:
+                    if profiles[idx].split("_")[-1] in age_list:
+                        removed_idx.append(idx)
+            for ri in removed_idx:
+                split_profiles[phase].remove(ri)
+
+        return split_profiles
+
+    def remove_fake(
+        self,
+        split_profiles,
+        profiles,
+        mode=["train", "val"],
+    ):  # mode에서 mixup 데이터 제거
+        print("remove fake..")
+        for phase, indices in split_profiles.items():
+            removed_idx = []
+            if phase in mode:
+                for idx in indices:
+                    if profiles[idx].split("_")[2] == "Fake":
+                        removed_idx.append(idx)
+            for ri in removed_idx:
+                split_profiles[phase].remove(ri)
+
+        return split_profiles
 
     def setup(self):
         profiles = os.listdir(self.data_dir)
         profiles = [profile for profile in profiles if not profile.startswith(".")]
-        split_profiles = self._split_profile(profiles, self.val_ratio)
+
+        if self.balanced_split == True:
+            split_profiles = self.balanced_split_profile(profiles, self.val_ratio)
+        else:
+            split_profiles = self._split_profile(profiles, self.val_ratio)
+
+        if self.exec_remove_fake:
+            split_profiles = self.remove_fake(
+                split_profiles, profiles, self.remove_fake_mode
+            )
+
+        if self.exec_age_drop:
+            split_profiles = self.age_drop(
+                split_profiles, profiles, self.age_drop_mode, self.drop_age
+            )
 
         cnt = 0
         for phase, indices in split_profiles.items():
@@ -624,10 +794,14 @@ class MultiLabelMaskSplitByProfileDataset(MultiLabelMaskBaseDataset):
                 img_folder = os.path.join(self.data_dir, profile)
                 for file_name in os.listdir(img_folder):
                     _file_name, ext = os.path.splitext(file_name)
-                    if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+                    if (
+                        _file_name not in self._file_names
+                    ):  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                         continue
 
-                    img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                    img_path = os.path.join(
+                        self.data_dir, profile, file_name
+                    )  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                     mask_label = self._file_names[_file_name]
 
                     id, gender, race, age = profile.split("_")
@@ -638,22 +812,45 @@ class MultiLabelMaskSplitByProfileDataset(MultiLabelMaskBaseDataset):
                     self.mask_labels.append(mask_label)
                     self.gender_labels.append(gender_label)
                     self.age_labels.append(age_label)
+                    self.total_labels.append(
+                        self.encode_multi_class(mask_label, gender_label, age_label)
+                    )
 
                     self.indices[phase].append(cnt)
                     cnt += 1
+
+        for phase, indices in self.indices.items():
+            if phase == "train":
+                for t in indices:
+                    self.train_labels.append(self.total_labels[t])
+            else:
+                for v in indices:
+                    self.val_labels.append(self.total_labels[v])
+
+        # ct = Counter(self.train_labels)
+        # cv = Counter(self.val_labels)
+        # print("train ratio", sorted(ct.items()))
+        # print("val ratio", sorted(cv.items()))
+        # print("train_labels len", len(self.train_labels))
+        # print("val_labels len", len(self.val_labels))
+        # print()
 
     def split_dataset(self) -> List[Subset]:
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
 
 class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+    def __init__(
+        self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)
+    ):
         self.img_paths = img_paths
-        self.transform = Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
+        self.transform = Compose(
+            [
+                Resize(resize, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+            ]
+        )
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])
@@ -664,19 +861,22 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.img_paths)
-    
-class TTADataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+
+
+class TTADataset(Dataset):  # Apply TestTimeAugmentation
+    def __init__(
+        self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)
+    ):
         self.img_paths = img_paths
-        self.transform = Compose([
-            CenterCrop((380, 380)),
-            Resize(resize, Image.BILINEAR),
-            #ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            #AddGaussianNoise()
-        ])
-        print('TTA is called')
+        self.transform = Compose(
+            [
+                CenterCrop((380, 380)),
+                Resize(resize, Image.BILINEAR),
+                ToTensor(),
+                Normalize(mean=mean, std=std),
+            ]
+        )
+        print("TTADataset is Used")
 
     def __getitem__(self, index):
         image = Image.open(self.img_paths[index])

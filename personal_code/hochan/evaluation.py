@@ -51,6 +51,14 @@ def evaluation(data_dir, model_dir, args):
 
     num_classes = MaskBaseDataset.num_classes  # 18
     model = load_model(model_dir, num_classes, device).to(device)
+    #model.eval()
+
+    # img_root = os.path.join(data_dir, 'images')
+    # info_path = os.path.join(data_dir, 'info.csv')
+    # info = pd.read_csv(info_path)
+    # img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
+
+	# dataset = TestDataset(img_paths, args.resize)
 
 	# -- dataset
     dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
@@ -90,33 +98,65 @@ def evaluation(data_dir, model_dir, args):
             
             inputs, labels = eval_batch
             inputs = inputs.to(device)
+            #labels = labels.to(device)
 
             outs = model(inputs)
             
             model_pred = torch.argmax(outs, dim=-1)
             
+            #print(type(preds),type(labels))
+            
+            # loss_item = criterion(outs, labels).item()
+            # acc_item = (labels == preds).sum().item()
+            # val_loss_items.append(loss_item)
+            # val_acc_items.append(acc_item)
+
             preds.extend(model_pred.cpu().numpy())
             real_label.extend(labels.cpu().numpy())
+            
+            #print(type(preds),type(labels))
+            
+            #print(len(preds),len(real_label))
+    	
+        #print(type(preds),type(real_label))
+        #print(preds)
+        #print(real_label)
     
         print(classification_report(real_label, preds))
         print(confusion_matrix(real_label, preds))
     
+    # print("Calculating inference results..")
+    # preds = []
+    # with torch.no_grad():
+    #     for idx, images in enumerate(eval_loader):
+    #         images = images.to(device)
+    #         pred = model(images)
+    #         pred = pred.argmax(dim=-1)
+    #         preds.extend(pred.cpu().numpy())
+
+    # info['ans'] = preds
+    # save_path = os.path.join(output_dir, f'output.csv')
+    # info.to_csv(save_path, index=False)
+    # print(f"Inference Done! Inference result saved at {save_path}")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskBaseDataset)')
-    parser.add_argument('--augmentation', type=str, default='BestAugmentation', help='data augmentation type (default: BaseAugmentation)')
+    parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskSplitByProfileDataset)')
+    parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
     
     # Data and model checkpoints directories
-    parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument("--resize", nargs="+", type=int, default=[224, 224], help='resize size for image when training')
-    parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
+    parser.add_argument('--batch_size', type=int, default=265, help='input batch size for validing (default: 265)')
+    parser.add_argument('--resize', type=tuple, default=(224, 224), help='resize size for image when you trained (default: (224, 224))')
+    parser.add_argument('--model', type=str, default='EfficientB4', help='model type (default: EfficientB4)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/train/images'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/exp'))
+    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model/exp2'))
+    
+    #parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output'))
 
     args = parser.parse_args()
 
