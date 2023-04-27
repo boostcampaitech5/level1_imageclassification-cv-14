@@ -15,6 +15,10 @@
   ├─voting.py : Ensemble - Hard voting
   ├─README.md 
 ``` 
+### 모델 구조
+<img src='../Image/model.png/' width="800"/>
+
+<br/><br/>
 
 
 ### 모델 Train 방법
