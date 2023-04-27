@@ -72,8 +72,8 @@
 
 > ### 모델 학습 일지 
 <a href='https://bottlenose-oak-2e3.notion.site/wrap-up-report-c37b3c035f82462480954c78dabbdc5c'> `Notion 🔥`</a>  
-<a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report.pdf'> `랩업 리포트 ✅`</a>  
-<a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report_ppt.pdf'>`랩업 리포트 PPT`⭐`</a>
+<a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report.pdf'>`랩업 리포트 ✅`</a>  
+<a href='https://github.com/boostcampaitech5/level1_imageclassification-cv-14/blob/main/Report/report_ppt.pdf'>`랩업 리포트 PPT⭐`</a>
 <br/><br/>
                 
 > ### ⭐File Tree
