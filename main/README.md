@@ -11,7 +11,7 @@
   ├─model.py : models
   ├─multi_inference.py : Multi model inference
   ├─multi_train.py : Multi model train
-  ├─utils.py : tools for training
+  ├─utils.py : tools 
   ├─voting.py : Ensemble - Hard voting
   ├─README.md 
 ``` 
@@ -33,7 +33,7 @@ python train.py --epoch 30 --batch_size 32 --valid_batch_size 128 --model Effici
 python multi_train.py --epoch 30 --batch_size 32 --valid_batch_size 128 --model EfficientnetB43way --resize 380 380 --criterion focal
 ```
 - `argparse`는 사용자의 선택에 따라서 수정 가능합니다. `argparse` 종류는 `multi_train.py`코드에서 확인해주세요
-
+<br/>
 
 ### 모델 Inference 방법
 ---
@@ -53,7 +53,7 @@ python multi_inference.py --model EfficientnetB43wayF --batch_size 256 --model_d
 ```
 - `--model_dir`의 경우 사용자의 모델이 저장된 경로로 지정해야합니다
 - `argparse`는 사용자의 선택에 따라서 수정 가능합니다. `argparse` 종류는 `multi_inference.py`코드에서 확인해주세요
-
+<br/>
 
 ### Ensemble 방법
 ---
@@ -64,7 +64,7 @@ python multi_inference.py --model EfficientnetB43wayF --batch_size 256 --model_d
 python voting
 ```
 - `voting`파이썬을 실행해주면 `path`위치에 앙상블의 결과가 `voting.csv`로 저장됩니다
-
+<br/>
 
 ### TOP1 Model 학습 방법
 ---
@@ -78,6 +78,7 @@ and
 
 - A + B + C : Hard voting
 ```
+<a href = 'https://bottlenose-oak-2e3.notion.site/Model-weights-result-0d6e3ad6401348a58f39edc857abc6b3'>`📀Model weight (.pth) DownLoad Link`</a>  
 
 **Final Score**
 ![private](../Image/private.png)
